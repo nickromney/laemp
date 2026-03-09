@@ -365,7 +365,7 @@ for combo in "${SUPPORTED_COMBOS[@]}"; do
   if [[ ! ("${run_status}" != "PASS" && "${KEEP_FAILED_VM}" == "true") ]]; then
     slicer_wait_no_vm "${vm_name}" || true
     if should_reset_daemon_between_combos; then
-      slicer_restart_daemon
+      slicer_restart_daemon 30
     fi
   fi
 done
