@@ -3,43 +3,20 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - "**"
+  pull_request:
 
 jobs:
-  ci:
-    name: Run laemp.sh
+  shellcheck:
+    name: ShellCheck
     runs-on: ubuntu-22.04
 
-    env:
-      DB_DATABASE: test_db
-      DB_USER: root
-      DB_PASSWORD: root
-
     steps:
-    # - name: Set up MySQL
-    #   run: |
-    #     sudo /etc/init.d/mysql start
-    #     mysql -e 'CREATE DATABASE ${{ env.DB_DATABASE }};' -u${{ env.DB_USER }} -p${{ env.DB_PASSWORD }}
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install --yes shellcheck
 
-    # https://github.com/shivammathur/setup-php/wiki/Php-extensions-loaded-on-ubuntu-20.04#php-74
-    # List of default PHP Modules
-    # Has mysqli not mysql
-    # May need geoip, ntlm, pear
-    # GH Actions image already has php7.4-fpm
-    # php7.4-fpm is already the newest version (7.4.13-1+ubuntu20.04.1+deb.sury.org+1).
-
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '7.4'
-
-    - name: Run laemp.sh
-      run: |
-        ./laemp.sh -c -p 7.4 -f -m 310 -w apache
-
-    # - name: Set test site
-    #   run: |
-    #     sudo ./virtualhost.sh create myblog.dev wordpress
+      - name: Run lint target
+        run: make lint

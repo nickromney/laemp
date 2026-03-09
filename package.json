@@ -4,6 +4,7 @@
   "description": "End-to-end tests for the laemp stack using Playwright",
   "scripts": {
     "test": "playwright test",
+    "test:vm:smoke": "playwright test tests/e2e/vm-smoke.spec.ts",
     "test:slicer:smoke": "playwright test tests/e2e/slicer-smoke.spec.ts",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",

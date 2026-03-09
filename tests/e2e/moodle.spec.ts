@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env.test') });
  * Prerequisites:
  * 1. Moodle must already be running at MOODLE_URL
  * 2. Admin credentials must be set in .env.test or the environment
- * 3. Use tests/slicer/run-matrix.sh or the Docker baseline runner to provision the target
+ * 3. Use platforms/slicervm/run-matrix.sh, platforms/lima/run-matrix.sh, or the Docker baseline runner to provision the target
  *
  * Test Coverage:
  * - HTTPS/SSL configuration

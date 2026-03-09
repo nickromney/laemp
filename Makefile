@@ -26,6 +26,9 @@ lint: ## Run shellcheck on shell entry points
 		laemp.sh \
 		verify-moodle.sh \
 		scripts/*.sh \
+		platforms/docker/*.sh \
+		platforms/lima/*.sh \
+		platforms/slicervm/*.sh \
 		tests/docker/*.sh \
 		tests/slicer/*.sh
 
@@ -80,11 +83,7 @@ gitleaks-protect: ## Run gitleaks against staged files
 .PHONY: debian
 debian: ## Ensure the Debian compose container is running
 	@echo "$(YELLOW)Ensuring Debian container is running...$(NC)"
-	@if ! $(COMPOSE_CMD) ps moodle-test-debian 2>/dev/null | grep -q "Up"; then \
-		$(COMPOSE_CMD) up -d moodle-test-debian; \
-	else \
-		echo "$(GREEN)Debian container already running$(NC)"; \
-	fi
+	@$(MAKE) -C platforms/docker compose-up
 	@echo ""
 	@echo "$(GREEN)Install model$(NC)"
 	@echo "  moodle-test-debian runs laemp.sh automatically on boot via systemd"
@@ -97,8 +96,7 @@ debian: ## Ensure the Debian compose container is running
 
 .PHONY: debian-clean
 debian-clean: ## Recreate the Debian compose container
-	@$(COMPOSE_CMD) down moodle-test-debian 2>/dev/null || true
-	@$(COMPOSE_CMD) up -d moodle-test-debian
+	@$(MAKE) -C platforms/docker compose-clean
 
 .PHONY: ubuntu
 ubuntu: ## Explain the current Ubuntu container path
@@ -116,15 +114,27 @@ ubuntu-clean: ## Explain the current Ubuntu clean-slate container path
 
 .PHONY: docker-baseline
 docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, Moodle 5.1.3)
-	@./tests/docker/run-baseline.sh
+	@$(MAKE) -C platforms/docker baseline
+
+.PHONY: docker-matrix
+docker-matrix: ## Run the supported Docker matrix
+	@$(MAKE) -C platforms/docker matrix
 
 .PHONY: slicer
 slicer: ## Run the proven Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.1.3)
-	@./tests/slicer/run-test.sh
+	@$(MAKE) -C platforms/slicervm baseline
 
 .PHONY: slicer-matrix
 slicer-matrix: ## Run the supported Slicer matrix with Playwright smoke checks
-	@./tests/slicer/run-matrix.sh
+	@$(MAKE) -C platforms/slicervm matrix
+
+.PHONY: lima
+lima: ## Run the proven Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.1.3)
+	@$(MAKE) -C platforms/lima baseline
+
+.PHONY: lima-matrix
+lima-matrix: ## Run the supported Lima matrix with Playwright smoke checks
+	@$(MAKE) -C platforms/lima matrix
 
 .PHONY: cleanup
 cleanup: ## Remove compose test containers, networks, and volumes

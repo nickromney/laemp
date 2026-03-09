@@ -4,13 +4,14 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright configuration for LAEMP E2E tests
  *
  * Prerequisites:
- * 1. Provision a running target with tests/slicer/run-matrix.sh or tests/docker/run-baseline.sh
+ * 1. Provision a running target with platforms/slicervm/run-matrix.sh,
+ *    platforms/lima/run-matrix.sh, or platforms/docker/run-baseline.sh
  * 2. Set MOODLE_URL and MOODLE_ADMIN_PASSWORD in .env.test or the environment
  *
  * Run tests: npm test
  *
- * For Slicer-backed smoke tests, use:
- *   tests/slicer/run-matrix.sh --php 8.4 --web nginx --moodle 5013
+ * For VM-backed smoke tests, use:
+ *   platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 5013
  */
 export default defineConfig({
   testDir: './tests/e2e',

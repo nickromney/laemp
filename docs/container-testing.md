@@ -1,10 +1,11 @@
 # Container Testing
 
-Container testing exists to make `laemp.sh` broadly runnable by contributors who do not have Slicer.
+Container testing exists to make `laemp.sh` broadly runnable by contributors who do not have Slicer or do not want a full VM workflow.
 
 It is intentionally not the same thing as VM-faithful testing:
 
 - Containers are the right place to test package bootstrap logic, stock image behavior, prereqs images, and external-database flows.
+- Lima VMs are the right place for a lightweight local Ubuntu VM path on macOS.
 - Slicer VMs are the right place to test real `systemd`, service enablement, package post-install behavior, guest trust stores, and "real Ubuntu host" assumptions.
 
 ## Current Container Paths

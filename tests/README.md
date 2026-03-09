@@ -3,6 +3,7 @@
 This repo uses both containers and VMs because they answer different questions.
 
 - Containers are the widely available path. Use them for fast bootstrap and last-mile checks.
+- Lima VMs are a lighter local VM path on macOS, using loopback-only host exposure.
 - Slicer VMs are the VM-faithful path. Use them for real Ubuntu behavior, `systemd`, exporter wiring, guest trust stores, and browser smoke against a live guest.
 
 ## Test Tiers
@@ -31,6 +32,7 @@ The first Docker path to reach for is the Slicer-proven baseline: Debian stock i
 
 ```bash
 make docker-baseline
+make docker-matrix
 ```
 
 This runner builds the stock Debian image if needed, starts an isolated container, executes `laemp.sh`, and writes logs plus verification artifacts to `/tmp`.
@@ -85,9 +87,29 @@ Examples:
 ```bash
 docker compose exec -T moodle-test-debian cat /var/lib/laemp/moodle-admin-credentials.env
 slicer vm exec sbox-1 --url "$HOME/slicer-mac/slicer.sock" --uid 1000 -- 'sudo cat /var/lib/laemp/moodle-admin-credentials.env'
+limactl shell laemp-moodle-php8-4-nginx-moodle5013-mariadb sudo cat /var/lib/laemp/moodle-admin-credentials.env
 ```
 
-### 6. Slicer matrix plus Playwright smoke
+### 6. Lima matrix plus Playwright smoke
+
+Provision a fresh Lima VM per combo, run `laemp.sh`, then run Playwright smoke against `moodle.lima.test.127.0.0.1.sslip.io`.
+
+```bash
+npm install
+npx playwright install chromium
+
+platforms/lima/run-matrix.sh
+platforms/lima/run-matrix.sh --php 8.4 --web nginx --moodle 5013
+```
+
+The repo also exposes:
+
+```bash
+make lima
+make lima-matrix
+```
+
+### 7. Slicer matrix plus Playwright smoke
 
 Provision a fresh VM per combo, run `laemp.sh`, then run Playwright smoke against the live guest.
 
@@ -95,9 +117,9 @@ Provision a fresh VM per combo, run `laemp.sh`, then run Playwright smoke agains
 npm install
 npx playwright install chromium
 
-tests/slicer/run-matrix.sh
-tests/slicer/run-matrix.sh --php 8.4 --web nginx --moodle 5013
-tests/slicer/run-matrix.sh --php 8.4 --web nginx --moodle 5013 --database pgsql --extra-flag -M
+platforms/slicervm/run-matrix.sh
+platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 5013
+platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 5013 --database pgsql --extra-flag -M
 ```
 
 The repo also exposes:
@@ -121,10 +143,11 @@ Today it is not a full stock Ubuntu matrix. If you want broad Docker coverage, u
 
 - `tests/bats/test_smoke.bats`: script integrity and obvious regressions
 - `tests/bats/test_laemp.bats`: CLI surface and dry-run behavior
-- `tests/docker/run-baseline.sh`: one honest end-to-end container bootstrap
+- `platforms/docker/run-baseline.sh`: one honest end-to-end container bootstrap
+- `platforms/lima/run-matrix.sh`: one honest VM-backed local Lima matrix
 - `tests/bats/test_integration.bats`: container bootstrap behavior on stock images
 - Playwright: user-facing Moodle behavior against a running target
-- Slicer matrix: real Ubuntu provisioning behavior
+- `platforms/slicervm/run-matrix.sh`: real Ubuntu provisioning behavior on Slicer
 
 ## Troubleshooting
 
@@ -155,6 +178,7 @@ For test harness runs, prefer the split host pattern:
 
 - Docker HTTP: `http://moodle.docker.test.127.0.0.1.sslip.io`
 - Docker HTTPS: `https://moodle.docker.test.127.0.0.1.sslip.io`
+- Lima HTTPS: `https://moodle.lima.test.127.0.0.1.sslip.io`
 - Slicer: `https://moodle.slicer.test.<vm-ip>.sslip.io`
 - Current `slicer-1` example: `https://moodle.slicer.test.192.168.64.2.sslip.io`
 
@@ -165,6 +189,6 @@ When you need a non-loopback Docker bind, keep it explicit rather than wildcard:
 
 ### Slicer tests fail
 
-Use the system daemon under `~/slicer-mac` and inspect the per-run artifacts emitted by `tests/slicer/run-matrix.sh`.
+Use the system daemon under `~/slicer-mac` and inspect the per-run artifacts emitted by `platforms/slicervm/run-matrix.sh`.
 
 If a run dies during Moodle download or extraction with output like `gzip: stdin: not in gzip format` or `tar: Child returned status 1`, treat it as a transient bad archive fetch first, not automatically as a broken Moodle URL. `laemp.sh` now retries downloads and validates `.tgz` / `.tar.gz` payloads with `gzip -t` before reuse or extraction because this happened in a real `stable405` Slicer run.
