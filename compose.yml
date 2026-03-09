@@ -1,0 +1,319 @@
+# Podman Compose configuration for laemp.sh testing with separate database containers
+# Best practice: One service per container
+#
+# Default stack:
+#   - moodle-test-debian: Debian test environment → connects to postgres-db
+#   - postgres-db: Official PostgreSQL 16 container
+#
+# Optional profile:
+#   - moodle-test-serversideup: Server Side Up comparison container → connects to mysql-db
+#   - mysql-db: MariaDB 10.11 container for the Server Side Up comparison path
+#
+# Quick Start:
+#   docker compose up --build                                  # Default Debian app + PostgreSQL only
+#   docker compose --profile serversideup up --build mysql-db moodle-test-serversideup
+#   ./scripts/monitor-installation.sh                          # Monitor progress
+#
+# Access Moodle:
+#   http://moodle.docker.test.127.0.0.1.sslip.io         # HTTP redirects to HTTPS
+#   https://moodle.docker.test.127.0.0.1.sslip.io        # Debian with PostgreSQL by default
+#
+# Database connections:
+#   Default Debian path → postgres-db:5432
+#   Optional Server Side Up path → mysql-db:3306
+
+services:
+  # MariaDB 10.11 Database Container for Ubuntu test (Moodle requires MariaDB, not MySQL)
+  mysql-db:
+    image: mariadb:10.11
+    container_name: laemp-mysql
+    profiles:
+      - serversideup
+
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=moodle
+      - MYSQL_USER=moodle
+      - MYSQL_PASSWORD=moodlepass
+      - TZ=UTC
+
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+    # MariaDB configuration for Moodle with Barracuda file format
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-storage-engine=InnoDB
+      --max-allowed-packet=512M
+      --innodb-buffer-pool-size=256M
+      --innodb-file-format=Barracuda
+      --innodb-file-per-table=1
+      --innodb-large-prefix=1
+
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - laemp-test-network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgreSQL 16 Database Container for Debian test
+  postgres-db:
+    image: postgres:16
+    container_name: laemp-postgres
+
+    environment:
+      - POSTGRES_DB=moodle
+      - POSTGRES_USER=moodle
+      - POSTGRES_PASSWORD=moodlepass
+      - TZ=UTC
+      - PGDATA=/var/lib/postgresql/data/pgdata
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moodle"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - laemp-test-network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Server Side Up PHP (FPM + Nginx) container for Moodle testing
+  moodle-test-serversideup:
+    image: ${SERVERSIDEUP_PHP_IMAGE:-serversideup/php:8.4-fpm-nginx}
+    container_name: laemp-test-serversideup
+    profiles:
+      - serversideup
+
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+    volumes:
+      - ./laemp.sh:/usr/local/bin/laemp.sh:ro
+      - ./verify-moodle.sh:/usr/local/bin/verify-moodle.sh:ro
+      - ./logs:/usr/local/bin/logs
+      - ./.certs:/etc/ssl/mkcert:ro
+      - serversideup-moodle:/var/www/html
+
+    environment:
+      - TZ=UTC
+      - LC_ALL=en_US.UTF-8
+      - LANG=en_US.UTF-8
+      - DB_HOST=mysql-db
+      - DB_TYPE=mariadb
+      - DB_NAME=moodle
+      - DB_USER=moodle
+      - DB_PASS=moodlepass
+      - MOODLE_SITE_DOMAIN=moodle.docker.test
+      - MOODLE_SITE_HOST=moodle.docker.test.127.0.0.1.sslip.io
+      - MOODLE_ADMIN_USER=${MOODLE_ADMIN_USER:-}
+      - MOODLE_ADMIN_USERNAME=${MOODLE_ADMIN_USERNAME:-}
+      - MOODLE_ADMIN_PASSWORD=${MOODLE_ADMIN_PASSWORD:-AdminPass123!}
+      - MOODLE_ADMIN_EMAIL=demo@moodle.docker.test
+      - LAEMP_IMAGE_FLAVOR=serversideup
+      - LAEMP_FASTCGI_PASS=127.0.0.1:9000
+      - LAEMP_MYSQL_SSL_OPTION=--ssl=0
+      - PHP_FPM_PM_MAX_CHILDREN=4
+      - LAEMP_CERT_MODE=mkcert
+      - LAEMP_MKCERT_DIR=/etc/ssl/mkcert
+
+    ports:
+      - "${LAEMP_DOCKER_BIND_HOST:-127.0.0.1}:${LAEMP_DOCKER_HTTP_PORT:-80}:80"
+      - "${LAEMP_DOCKER_BIND_HOST:-127.0.0.1}:${LAEMP_DOCKER_HTTPS_PORT:-443}:443"
+
+    networks:
+      - laemp-test-network
+
+  # Ubuntu 24.04 Test Container with MySQL - COMMENTED OUT (Focusing on Debian)
+  # _moodle-test-ubuntu:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.ubuntu
+  #   image: laemp-ubuntu:24.04
+  #   container_name: laemp-test-ubuntu
+
+  #   depends_on:
+  #     mysql-db:
+  #       condition: service_healthy
+
+  #   volumes:
+  #     - ./laemp.sh:/usr/local/bin/laemp.sh:ro
+  #     - ./verify-moodle.sh:/usr/local/bin/verify-moodle.sh:ro
+  #     - ubuntu-logs:/home/testuser/logs
+  #     - ubuntu-moodle:/var/www
+
+  #   environment:
+  #     - DEBIAN_FRONTEND=noninteractive
+  #     - TZ=UTC
+  #     - LC_ALL=en_US.UTF-8
+  #     - LANG=en_US.UTF-8
+  #     # Database connection settings
+  #     - DB_HOST=mysql-db
+  #     - DB_TYPE=mariadb
+  #     - DB_NAME=moodle
+  #     - DB_USER=moodle
+  #     - DB_PASS=moodlepass
+
+  #   command: >
+  #     /bin/bash -c "
+  #     echo 'STARTING' > /home/testuser/install-status;
+  #     echo 'Starting laemp.sh installation with external MySQL...' | tee /home/testuser/laemp-install.log;
+  #     echo '========================================' | tee -a /home/testuser/laemp-install.log;
+  #     echo 'Waiting for MySQL to be ready...' | tee -a /home/testuser/laemp-install.log;
+  #     until timeout 1 bash -c 'cat < /dev/null > /dev/tcp/mysql-db/3306' 2>/dev/null; do
+  #       echo 'Waiting for MySQL...' | tee -a /home/testuser/laemp-install.log;
+  #       sleep 2;
+  #     done;
+  #     echo 'MySQL is ready!' | tee -a /home/testuser/laemp-install.log;
+  #     if sudo -E /usr/local/bin/laemp.sh -c -p 8.4 -w nginx -d mariadb -m 5013 -S --skip-db-server 2>&1 | tee -a /home/testuser/laemp-install.log; then
+  #       EXIT_CODE=0;
+  #       echo 'SUCCESS' > /home/testuser/install-status;
+  #       echo '========================================' | tee -a /home/testuser/laemp-install.log;
+  #       echo 'laemp.sh completed SUCCESSFULLY' | tee -a /home/testuser/laemp-install.log;
+  #     else
+  #       EXIT_CODE=$$?;
+  #       echo 'FAILED' > /home/testuser/install-status;
+  #       echo '========================================' | tee -a /home/testuser/laemp-install.log;
+  #       echo 'laemp.sh FAILED with exit code:' $$EXIT_CODE | tee -a /home/testuser/laemp-install.log;
+  #     fi;
+  #     echo 'Container will continue running for inspection...' | tee -a /home/testuser/laemp-install.log;
+  #     exec sleep infinity
+  #     "
+
+  #   ports:
+  #     - "8090:80"
+  #     - "443:443"
+
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "2.0"
+  #         memory: 4G
+  #       reservations:
+  #         cpus: "1.0"
+  #         memory: 2G
+
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -k https://localhost >/dev/null 2>&1 || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 300s
+
+  #   networks:
+  #     - laemp-test-network
+
+  # Debian 13 Test Container with PostgreSQL (systemd-enabled)
+  moodle-test-debian:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.debian
+    image: laemp-debian-systemd:13
+    container_name: laemp-test-debian
+    privileged: true
+    cgroup: host
+    command: /lib/systemd/systemd
+    tmpfs:
+      - /run
+      - /tmp
+
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+    volumes:
+      - ./laemp.sh:/usr/local/bin/laemp.sh:ro
+      - ./verify-moodle.sh:/usr/local/bin/verify-moodle.sh:ro
+      - ./logs:/usr/local/bin/logs
+      - debian-moodle:/var/www
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+      - LC_ALL=en_US.UTF-8
+      - LANG=en_US.UTF-8
+      # Database connection settings
+      - DB_HOST=postgres-db
+      - DB_TYPE=pgsql
+      - DB_NAME=moodle
+      - DB_USER=moodle
+      - DB_PASS=moodlepass
+      - MOODLE_SITE_DOMAIN=moodle.docker.test
+      - MOODLE_SITE_HOST=moodle.docker.test.127.0.0.1.sslip.io
+      - MOODLE_ADMIN_USER=${MOODLE_ADMIN_USER:-}
+      - MOODLE_ADMIN_USERNAME=${MOODLE_ADMIN_USERNAME:-}
+      - MOODLE_ADMIN_PASSWORD=${MOODLE_ADMIN_PASSWORD:-AdminPass123!}
+      - MOODLE_ADMIN_EMAIL=demo@moodle.docker.test
+      - LAEMP_FORCE_HOST_MODE=true
+
+    ports:
+      - "${LAEMP_DOCKER_BIND_HOST:-127.0.0.1}:${LAEMP_DOCKER_HTTP_PORT:-80}:80"
+      - "${LAEMP_DOCKER_BIND_HOST:-127.0.0.1}:${LAEMP_DOCKER_HTTPS_PORT:-443}:443"
+
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "1.0"
+          memory: 2G
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k https://127.0.0.1 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+    networks:
+      - laemp-test-network
+
+volumes:
+  mysql-data:
+    name: laemp-mysql-data
+  postgres-data:
+    name: laemp-postgres-data
+  debian-moodle:
+    name: laemp-debian-moodle
+  serversideup-moodle:
+    name: laemp-serversideup-moodle
+
+networks:
+  laemp-test-network:
+    name: laemp-test-net
+    driver: bridge
