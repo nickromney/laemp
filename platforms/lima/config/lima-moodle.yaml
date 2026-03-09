@@ -1,0 +1,34 @@
+# Lima VM template for local laemp validation.
+
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    arch: "x86_64"
+
+vmType: "vz"
+rosetta:
+  enabled: false
+
+cpus: 2
+memory: "4GiB"
+disk: "20GiB"
+
+networks:
+  # Match the lightweight Lima pattern from publiccloudexperiments and avoid socket_vmnet.
+  - lima: user-v2
+
+mounts: []
+
+# Keep the host exposure loopback-only and limited to the Moodle web ports.
+portForwards:
+  - guestPort: 80
+    hostIP: "127.0.0.1"
+    hostPort: 80
+  - guestPort: 443
+    hostIP: "127.0.0.1"
+    hostPort: 443
+  - guestIP: "127.0.0.1"
+    proto: any
+    guestPortRange: [1, 65535]
+    ignore: true

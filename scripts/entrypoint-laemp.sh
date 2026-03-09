@@ -8,13 +8,17 @@ LOG_FILE="$LOG_DIR/install.log"
 
 import_container_runtime_env() {
   local entry
+  local key
+  local value
 
   [[ -r /proc/1/environ ]] || return 0
 
   while IFS= read -r -d '' entry; do
     case "$entry" in
-      DB_*=*|MOODLE_*=*|LAEMP_*=*|PHP_VERSION=*|MOODLE_VERSION=*|DEBIAN_FRONTEND=*|TZ=*|LANG=*|LC_ALL=*)
-        export "$entry"
+      DB_*=*|MOODLE_*=*|LAEMP_*=*|PHP_VERSION=*|DEBIAN_FRONTEND=*|TZ=*|LANG=*|LC_ALL=*)
+        key="${entry%%=*}"
+        value="${entry#*=}"
+        declare -gx "${key}=${value}"
         ;;
     esac
   done < /proc/1/environ

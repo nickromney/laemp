@@ -1,18 +1,20 @@
 # laemp
 
-`laemp.sh` installs LAMP or LEMP plus Moodle on Ubuntu and Debian. The script targets real Linux hosts, so this repo keeps two complementary test paths:
+`laemp.sh` installs LAMP or LEMP plus Moodle on Ubuntu and Debian. The script itself stays at the repo root because it is the product under test, while the repo now keeps three platform-owned validation strands around it:
 
+- Docker or Podman for broadly available bootstrap and last-mile testing.
+- Lima VMs for a lighter local Ubuntu VM path on macOS.
 - Slicer VMs for VM-faithful validation with `systemd`, real package lifecycle, and real service startup.
-- Docker or Podman containers for broadly available bootstrap and last-mile testing.
 
 Repo-managed testing uses distinct browser hosts so Docker and Slicer runs do not collide:
 
 - Docker test HTTP URL: `http://moodle.docker.test.127.0.0.1.sslip.io`
 - Docker test HTTPS URL: `https://moodle.docker.test.127.0.0.1.sslip.io`
+- Lima test HTTPS URL: `https://moodle.lima.test.127.0.0.1.sslip.io`
 - Slicer test host: `moodle.slicer.test.<vm-ip>.sslip.io`
 - Example current Slicer host: `moodle.slicer.test.192.168.64.2.sslip.io`
 
-Docker-published test ports bind to `127.0.0.1` by default, not `0.0.0.0`. If you intentionally want a non-loopback bind, set `LAEMP_DOCKER_BIND_HOST` to one explicit address such as a Slicer VM IP.
+Docker-published test ports bind to `127.0.0.1` by default, not `0.0.0.0`. The Lima strand does the same and only forwards `80/443` onto `127.0.0.1`. If you intentionally want a non-loopback Docker bind, set `LAEMP_DOCKER_BIND_HOST` to one explicit address such as a Slicer VM IP.
 
 `laemp.sh` itself still keeps its generic defaults so normal VPS installs can supply a real deployable domain.
 
@@ -59,6 +61,9 @@ Use Docker or Podman when you want something most contributors can run quickly.
 # Fastest end-to-end Docker check
 make docker-baseline
 
+# Full supported Docker matrix
+make docker-matrix
+
 # Explicit non-loopback bind when you intentionally want one
 LAEMP_DOCKER_BIND_HOST=192.168.64.3 LAEMP_DOCKER_HTTP_PORT=18080 LAEMP_DOCKER_HTTPS_PORT=18443 make docker-baseline
 
@@ -77,7 +82,21 @@ docker build -f docker/Dockerfile.prereqs.debian -t laemp-prereqs-debian .
 
 Docker paths use the host's native architecture by default. If you intentionally want cross-arch coverage, set `DOCKER_PLATFORM` or `CONTAINER_PLATFORM` explicitly.
 
-### 3. Slicer for VM-faithful validation
+### 3. Lima for a lightweight local VM path
+
+Use Lima when you want a local Ubuntu VM path without depending on Slicer.
+
+```bash
+# One proven fresh-VM baseline
+make lima
+
+# Full supported Lima matrix
+make lima-matrix
+```
+
+The Lima harness is organized under `platforms/lima`, follows the `publiccloudexperiments` platform layout, and publishes `moodle.lima.test.127.0.0.1.sslip.io` on loopback only.
+
+### 4. Slicer for VM-faithful validation
 
 Use Slicer when you need VM-faithful validation against a real Ubuntu-like guest.
 
@@ -86,7 +105,7 @@ Use Slicer when you need VM-faithful validation against a real Ubuntu-like guest
 make slicer
 
 # One supported combo with Playwright smoke
-tests/slicer/run-matrix.sh --php 8.4 --web nginx --moodle 5013
+platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 5013
 
 # Full supported Slicer matrix
 make slicer-matrix
@@ -105,14 +124,18 @@ They are not substitutes for one another.
 
 Current repo state reflects that split:
 
-- `tests/slicer/run-matrix.sh` is the canonical VM matrix runner.
-- `tests/docker/run-baseline.sh` is the canonical container baseline runner.
+- `platforms/docker/run-baseline.sh` is the canonical container baseline runner.
+- `platforms/lima/run-matrix.sh` is the canonical Lima VM matrix runner.
+- `platforms/slicervm/run-matrix.sh` is the canonical Slicer VM matrix runner.
 - `tests/bats/test_integration.bats` is the canonical stock-image container runner.
 - `compose.yml` defaults to the Debian systemd container plus PostgreSQL only. The MariaDB-backed Server Side Up comparison path is opt-in via the `serversideup` profile.
 
 ## Documentation
 
 - [`tests/README.md`](tests/README.md): test entry points and what each tier proves.
+- [`platforms/docker/README.md`](platforms/docker/README.md): container-owned platform workflow.
+- [`platforms/lima/README.md`](platforms/lima/README.md): Lima VM workflow.
+- [`platforms/slicervm/README.md`](platforms/slicervm/README.md): Slicer VM workflow.
 - [`docs/container-testing.md`](docs/container-testing.md): container-first testing workflow and constraints.
 - [`docs/dockerfile-prereqs.md`](docs/dockerfile-prereqs.md): stock vs prereqs image model.
 - [`docs/roadmap.md`](docs/roadmap.md): active follow-up work.
