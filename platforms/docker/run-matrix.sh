@@ -9,12 +9,12 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${SCRIPT_DIR}/lib.sh"
 
 SUPPORTED_CASES=(
-  "debian-stock-nginx-mariadb-m5013|debian|stock|8.4|nginx|mariadb|5013|"
-  "debian-stock-apache-mariadb-m5013|debian|stock|8.4|apache|mariadb|5013|"
-  "debian-stock-nginx-pgsql-m5013|debian|stock|8.4|nginx|pgsql|5013|"
-  "debian-prereqs-nginx-mariadb-m5013|debian|prereqs|8.4|nginx|mariadb|5013|"
-  "debian-stock-nginx-mariadb-m5013-memcached|debian|stock|8.4|nginx|mariadb|5013|-M"
-  "debian-stock-nginx-mariadb-m5013-prometheus|debian|stock|8.4|nginx|mariadb|5013|-r"
+  "debian-stock-nginx-mariadb-m502|debian|stock|8.4|nginx|mariadb|502|"
+  "debian-stock-apache-mariadb-m502|debian|stock|8.4|apache|mariadb|502|"
+  "debian-stock-nginx-pgsql-m502|debian|stock|8.4|nginx|pgsql|502|"
+  "debian-prereqs-nginx-mariadb-m502|debian|prereqs|8.4|nginx|mariadb|502|"
+  "debian-stock-nginx-mariadb-m502-memcached|debian|stock|8.4|nginx|mariadb|502|-M"
+  "debian-stock-nginx-mariadb-m502-prometheus|debian|stock|8.4|nginx|mariadb|502|-r"
 )
 
 RESULTS_DIR=""

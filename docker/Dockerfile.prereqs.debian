@@ -1,7 +1,7 @@
 # Debian prerequisite image for laemp.sh
 # Debian 13 (Trixie) - Released August 2025, supported until August 2028 (LTS until June 2030)
 # This image installs all required packages but performs NO configuration.
-# Configuration is done by running: laemp.sh -c -m 501 -S -w nginx -d mariadb
+# Configuration is done by running: laemp.sh -c -m 502 -S -w nginx -d mariadb
 
 FROM debian:13
 
