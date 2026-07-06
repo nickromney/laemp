@@ -17,6 +17,21 @@ $CFG->dbpass = 'moodlepass';
 $CFG->wwwroot = 'http://127.0.0.1:${TEST_PORT}';
 EOF
   printf 'Log in to the site\n' > "${TEST_TMPDIR}/index.html"
+  mkdir -p \
+    "${TEST_TMPDIR}/login" \
+    "${TEST_TMPDIR}/lib/javascript.php/1" \
+    "${TEST_TMPDIR}/lib/requirejs.php/1"
+  cat > "${TEST_TMPDIR}/login/index.php" <<'EOF'
+<!doctype html>
+<html>
+<body>
+<script src="/lib/javascript.php/1/core.js"></script>
+<script src="/lib/requirejs.php/1/require.min.js"></script>
+</body>
+</html>
+EOF
+  printf 'console.log("moodle fixture");\n' > "${TEST_TMPDIR}/lib/javascript.php/1/core.js"
+  printf 'console.log("require fixture");\n' > "${TEST_TMPDIR}/lib/requirejs.php/1/require.min.js"
 }
 
 teardown() {
@@ -61,5 +76,7 @@ teardown() {
 
   [ "${status}" -eq 0 ]
   [[ "${output}" == *"HTTP probe returned 200"* ]]
+  [[ "${output}" == *"JavaScript asset returned 200"* ]]
+  [[ "${output}" == *"RequireJS asset returned 200"* ]]
   [[ "${output}" == *"Moodle database contains 489 tables"* ]]
 }

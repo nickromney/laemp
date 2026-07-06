@@ -1,7 +1,7 @@
 # Ubuntu prerequisite image for laemp.sh
 # Ubuntu 24.04 LTS (Noble Numbat) - Released April 2024, supported until April 2029
 # This image installs all required packages but performs NO configuration.
-# Configuration is done by running: laemp.sh -c -m 501 -S -w nginx -d mariadb
+# Configuration is done by running: laemp.sh -c -m 502 -S -w nginx -d mariadb
 
 FROM ubuntu:24.04
 
