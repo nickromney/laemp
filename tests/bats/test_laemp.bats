@@ -92,7 +92,7 @@ setup() {
   run ./laemp.sh -m -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
-  [[ "$output" =~ "Ensure Moodle version 502" ]]
+  [[ "" =~ "Ensure Moodle version 5021" ]]
 }
 
 @test "moodle flag (-m) with version 405 (4.5) in dry-run verbose mode" {
@@ -109,25 +109,25 @@ setup() {
   [[ "$output" =~ "Ensure Moodle version 500" ]]
 }
 
-@test "moodle flag (-m) with version 502 (5.2) in dry-run verbose mode" {
-  run ./laemp.sh -m 502 -n -v
+@test "moodle flag (-m) with version 5021 (5.2.1) in dry-run verbose mode" {
+  run ./laemp.sh -m 5021 -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
-  [[ "$output" =~ "Ensure Moodle version 502" ]]
+  [[ "" =~ "Ensure Moodle version 5021" ]]
 }
 
-@test "Moodle 5.2 rejects PHP 8.2 in dry-run verbose mode" {
-  run ./laemp.sh -p 8.2 -m 502 -n -v
+@test "Moodle 5.2.1 rejects PHP 8.2 in dry-run verbose mode" {
+  run ./laemp.sh -p 8.2 -m 5021 -n -v
   echo "Exit status: $status"
   [ $status -eq 1 ]
-  [[ "$output" =~ "Moodle 5.2 requires PHP 8.3 or higher" ]]
+  [[ "$output" =~ "Moodle 5.2.1 requires PHP 8.3 or higher" ]]
 }
 
-@test "Moodle 5.2 accepts PHP 8.3 in dry-run verbose mode" {
-  run ./laemp.sh -p 8.3 -m 502 -n -v
+@test "Moodle 5.2.1 accepts PHP 8.3 in dry-run verbose mode" {
+  run ./laemp.sh -p 8.3 -m 5021 -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
-  [[ "$output" =~ "Ensure Moodle version 502" ]]
+  [[ "" =~ "Ensure Moodle version 5021" ]]
 }
 
 @test "moodle flag (--moodle) with specific version in dry-run verbose mode" {

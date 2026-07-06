@@ -48,7 +48,7 @@ Usage:
 Options:
   --php VERSION             Filter to one PHP version (8.3 or 8.4)
   --web SERVER              Filter to one web server (apache or nginx)
-  --moodle VERSION          Filter to one Moodle version (405, 500, 502)
+  --moodle VERSION          Filter to one Moodle version (405, 500, 5021)
   --database TYPE           Database type to install (default: mariadb)
   --cert MODE               Certificate mode: self-signed or mkcert (default: self-signed)
   --extra-flag FLAG         Extra laemp.sh flag to pass through (repeatable)
@@ -59,8 +59,8 @@ Options:
 
 Examples:
   platforms/slicervm/run-matrix.sh
-  platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 502
-  platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 502 --database pgsql --extra-flag -M
+  platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 50211
+  platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 50211 --database pgsql --extra-flag -M
 EOF
 }
 

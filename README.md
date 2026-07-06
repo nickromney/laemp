@@ -25,19 +25,19 @@ Docker-published test ports bind to `127.0.0.1` by default, not `0.0.0.0`. The L
 ./laemp.sh -h
 
 # Dry run
-./laemp.sh -n -v -p 8.4 -w nginx -d mariadb -m 502 -S
+./laemp.sh -n -v -p 8.4 -w nginx -d mariadb -m 5021 -S
 
 # Full local install on Ubuntu/Debian
-sudo ./laemp.sh -c -p 8.4 -w nginx -d mariadb -m 502 -S
+sudo ./laemp.sh -c -p 8.4 -w nginx -d mariadb -m 5021 -S
 
 # Full local install with an explicit admin password
-sudo MOODLE_ADMIN_PASSWORD='AdminPass123!' ./laemp.sh -c -p 8.4 -w nginx -d mariadb -m 502 -S
+sudo MOODLE_ADMIN_PASSWORD='AdminPass123!' ./laemp.sh -c -p 8.4 -w nginx -d mariadb -m 5021 -S
 
 # Full local install with PostgreSQL, memcached, and monitoring
-sudo ./laemp.sh -c -p 8.4 -w nginx -d pgsql -m 502 -S -M -r
+sudo ./laemp.sh -c -p 8.4 -w nginx -d pgsql -m 5021 -S -M -r
 
 # Locally trusted certificate inside the guest
-sudo ./laemp.sh -c -p 8.4 -w nginx -d mariadb -m 502 --mkcert
+sudo ./laemp.sh -c -p 8.4 -w nginx -d mariadb -m 5021 --mkcert
 ```
 
 Successful installs write admin credentials to `/var/lib/laemp/moodle-admin-credentials.env`. Set `MOODLE_ADMIN_PASSWORD` up front if you want a fixed password instead of a generated one. `laemp.sh` also accepts `MOODLE_ADMIN_USER` as an alias for the admin username, matching `frankenphp-moodle`.
@@ -105,7 +105,7 @@ Use Slicer when you need VM-faithful validation against a real Ubuntu-like guest
 make slicer
 
 # One supported combo with Playwright smoke
-platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 502
+platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 50211
 
 # Full supported Slicer matrix
 make slicer-matrix

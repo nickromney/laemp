@@ -382,12 +382,12 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "default Moodle version is 5.2 tag 502" {
-  run grep '^DEFAULT_MOODLE_VERSION="502"$' "$SCRIPT"
+@test "default Moodle version is 5.2.1 tag 5021" {
+  run grep '^DEFAULT_MOODLE_VERSION="5021"$' "$SCRIPT"
   [ "$status" -eq 0 ]
 }
 
-@test "Moodle 5.2 compatibility requires PHP 8.3 through 8.4" {
+@test "Moodle 5.2.1 compatibility requires PHP 8.3 through 8.4" {
   run awk '
     /"502"\)/ { found = 1; in502 = 1 }
     in502 && /min_php="8.3"/ { min = 1 }

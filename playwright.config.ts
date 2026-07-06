@@ -11,7 +11,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Run tests: npm test
  *
  * For VM-backed smoke tests, use:
- *   platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 502
+ *   platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 50211
  */
 export default defineConfig({
   testDir: './tests/e2e',

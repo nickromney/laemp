@@ -113,7 +113,7 @@ ubuntu-clean: ## Explain the current Ubuntu clean-slate container path
 	@exit 1
 
 .PHONY: docker-baseline
-docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, Moodle 5.2/stable502)
+docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, Moodle 5.2.1/stable502)
 	@$(MAKE) -C platforms/docker baseline
 
 .PHONY: docker-matrix
@@ -121,7 +121,7 @@ docker-matrix: ## Run the supported Docker matrix
 	@$(MAKE) -C platforms/docker matrix
 
 .PHONY: slicer
-slicer: ## Run the proven Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2/stable502)
+slicer: ## Run the proven Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.1/stable502)
 	@$(MAKE) -C platforms/slicervm baseline
 
 .PHONY: slicer-matrix
@@ -129,7 +129,7 @@ slicer-matrix: ## Run the supported Slicer matrix with Playwright smoke checks
 	@$(MAKE) -C platforms/slicervm matrix
 
 .PHONY: lima
-lima: ## Run the proven Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2/stable502)
+lima: ## Run the proven Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.1/stable502)
 	@$(MAKE) -C platforms/lima baseline
 
 .PHONY: lima-matrix
