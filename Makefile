@@ -68,6 +68,16 @@ precommit: lint ## Run pre-commit hooks on all files
 precommit-install: ## Install pre-commit hooks
 	@pre-commit install
 
+.PHONY: hooks
+hooks: ## Install lefthook-managed Git hooks
+	@if ! command -v lefthook >/dev/null 2>&1; then \
+		echo "lefthook not found in PATH." >&2; \
+		exit 1; \
+	fi
+	@lefthook install
+	@echo "Installed lefthook hooks from lefthook.yml"
+	@echo "Skip one git command with: LEFTHOOK=0 git <command> or --no-verify"
+
 .PHONY: security-setup
 security-setup: ## Install local security tooling on macOS
 	@./scripts/setup-security.sh

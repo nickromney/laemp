@@ -42,6 +42,22 @@ sudo ./laemp.sh -c -p 8.4 -w nginx -d mariadb -m 5021 --mkcert
 
 Successful installs write admin credentials to `/var/lib/laemp/moodle-admin-credentials.env`. Set `MOODLE_ADMIN_PASSWORD` up front if you want a fixed password instead of a generated one. `laemp.sh` also accepts `MOODLE_ADMIN_USER` as an alias for the admin username, matching `frankenphp-moodle`.
 
+## Local Validation
+
+Install the repo hooks with `lefthook install` or `make hooks`. The pre-commit
+hook runs ShellCheck against staged shell files, and the pre-push hook runs the
+same `make lint` gate that CI runs on demand.
+
+Skip one hook run only when needed with `LEFTHOOK=0 git ...` or `git ... --no-verify`.
+The underlying hook scripts also honor `LAEMP_SKIP_HOOKS=1`.
+
+GitHub CI no longer runs automatically on pushes or pull requests. Run it on
+demand with:
+
+```bash
+gh workflow run ci.yml
+```
+
 ## Test Strategy
 
 ### 1. Fast host-side checks

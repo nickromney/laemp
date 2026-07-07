@@ -1,0 +1,10 @@
+pre-commit:
+  commands:
+    shellcheck:
+      glob: "*.sh"
+      run: scripts/hooks/check-staged-shell.sh --execute {staged_files}
+
+pre-push:
+  commands:
+    local-ci:
+      run: scripts/hooks/run-local-ci.sh --execute
