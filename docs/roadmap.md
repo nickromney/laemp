@@ -12,7 +12,7 @@ The current direction is narrow on purpose: one Docker baseline that anyone can 
 
 Keep the Docker path centered on the one container case that has a clear purpose:
 
-- `php 8.4 + nginx + mariadb + moodle 5021 + self-signed`
+- `php 8.4 + nginx + mariadb + moodle 5022 + self-signed`
 
 That case is useful because it tells us whether `laemp.sh` can bootstrap a realistic Debian-based host image in a way that is likely to transfer to a VPS.
 

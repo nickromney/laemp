@@ -28,7 +28,7 @@ bats tests/bats/test_laemp.bats
 
 ### 3. Docker baseline
 
-The first Docker path to reach for is the Slicer-proven baseline: Debian stock image, PHP 8.4, nginx, MariaDB, Moodle 5.2.1/stable502, self-signed TLS.
+The first Docker path to reach for is the Slicer-proven baseline: Debian stock image, PHP 8.4, nginx, MariaDB, Moodle 5.2.2/stable502, self-signed TLS.
 
 ```bash
 make docker-baseline
@@ -87,7 +87,7 @@ Examples:
 ```bash
 docker compose exec -T moodle-test-debian cat /var/lib/laemp/moodle-admin-credentials.env
 slicer vm exec sbox-1 --url "$HOME/slicer-mac/slicer.sock" --uid 1000 -- 'sudo cat /var/lib/laemp/moodle-admin-credentials.env'
-limactl shell laemp-moodle-php8-4-nginx-moodle5021-mariadb sudo cat /var/lib/laemp/moodle-admin-credentials.env
+limactl shell laemp-moodle-php8-4-nginx-moodle5022-mariadb sudo cat /var/lib/laemp/moodle-admin-credentials.env
 ```
 
 ### 6. Lima matrix plus Playwright smoke
@@ -99,7 +99,7 @@ npm install
 npx playwright install chromium
 
 platforms/lima/run-matrix.sh
-platforms/lima/run-matrix.sh --php 8.4 --web nginx --moodle 50211
+platforms/lima/run-matrix.sh --php 8.4 --web nginx --moodle 5022
 ```
 
 The repo also exposes:
@@ -118,8 +118,8 @@ npm install
 npx playwright install chromium
 
 platforms/slicervm/run-matrix.sh
-platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 50211
-platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 50211 --database pgsql --extra-flag -M
+platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 5022
+platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 5022 --database pgsql --extra-flag -M
 ```
 
 The repo also exposes:

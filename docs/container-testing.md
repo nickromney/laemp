@@ -46,7 +46,7 @@ Typical last-mile run:
 
 ```bash
 docker run -it --rm laemp-prereqs-ubuntu
-sudo ./laemp.sh -c -w nginx -d mariadb -m 5021 -S
+sudo ./laemp.sh -c -w nginx -d mariadb -m 5022 -S
 ```
 
 ### Compose
@@ -68,9 +68,9 @@ The next Docker pass should mirror what already works on Slicer and classify eac
 
 Start with these:
 
-1. `php 8.4 + nginx + mariadb + moodle 5021 + self-signed`
-2. `php 8.4 + apache + mariadb + moodle 5021 + self-signed`
-3. `php 8.4 + nginx + pgsql + moodle 5021 + self-signed`
+1. `php 8.4 + nginx + mariadb + moodle 5022 + self-signed`
+2. `php 8.4 + apache + mariadb + moodle 5022 + self-signed`
+3. `php 8.4 + nginx + pgsql + moodle 5022 + self-signed`
 4. the prereqs-image variant of the same three
 5. memcached on top of the nginx baseline
 6. Prometheus on top of the nginx baseline

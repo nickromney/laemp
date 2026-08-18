@@ -19,5 +19,7 @@ make -C platforms/docker matrix
 Notes:
 
 - Published ports bind to `127.0.0.1` by default, not `0.0.0.0`.
+- Compose and the Docker baseline probe those host ports first and move if they are already taken.
+- `compose-up` waits for HTTPS and refuses to print a URL whose leaf certificate is expired or within an hour of expiry. Use the printed URL, including the port when it is not `443`. Kind or another process on `127.0.0.1:443` will answer the no-port URL.
 - The compose path is intentionally the fast external-PostgreSQL path, not the in-container database-install path.
 - The canonical runners now live here; `tests/docker/*` remain as compatibility shims.

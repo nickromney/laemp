@@ -9,7 +9,7 @@ help:
 	@echo "docker platform"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make baseline        # proven Debian/nginx/MariaDB/Moodle 5.2.1/stable502 runner"
+	@echo "  make baseline        # proven Debian/nginx/MariaDB/Moodle 5.2.2/stable502 runner"
 	@echo "  make matrix          # supported Docker matrix"
 	@echo "  make compose-up      # fast Debian + PostgreSQL compose path"
 	@echo "  make compose-clean   # recreate the fast compose path"
@@ -24,7 +24,7 @@ matrix:
 
 .PHONY: compose-up
 compose-up:
-	@cd "$(REPO_ROOT)" && $(COMPOSE_CMD) up -d postgres-db moodle-test-debian
+	@./compose-up.sh
 
 .PHONY: compose-clean
 compose-clean:
