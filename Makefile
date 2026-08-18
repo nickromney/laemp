@@ -101,7 +101,7 @@ debian: ## Ensure the Debian compose container is running
 	@echo "$(GREEN)Useful commands$(NC)"
 	@echo "  $(COMPOSE_CMD) exec moodle-test-debian systemctl status laemp-installer --no-pager"
 	@echo "  $(COMPOSE_CMD) exec moodle-test-debian tail -f /var/log/laemp/install.log"
-  @echo "  $(COMPOSE_CMD) exec moodle-test-debian cat /var/lib/laemp/moodle-admin-credentials.env"
+	@echo "  $(COMPOSE_CMD) exec moodle-test-debian cat /var/lib/laemp/moodle-admin-credentials.env"
 	@echo "  Use the HTTPS URL printed by compose-up, including the host port when it is not 443."
 
 .PHONY: debian-clean
