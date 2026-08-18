@@ -7,5 +7,5 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 exec "${SCRIPT_DIR}/run-matrix.sh" \
   --php 8.4 \
   --web nginx \
-  --moodle 50211 \
+  --moodle 5022 \
   "$@"

@@ -21,4 +21,4 @@ Notes:
 
 - The VM template is Ubuntu 24.04 with Lima `user-v2` networking and no mounts.
 - Host exposure is pinned to `127.0.0.1` and restricted to ports `80` and `443`.
-- Docker and Lima both want `127.0.0.1:80/443`, so run one local strand at a time.
+- Docker baselines publish high loopback ports (`18180`/`18543`) instead of `80`/`443`, so Lima and Docker can run on the same machine.

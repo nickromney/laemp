@@ -44,7 +44,7 @@ Typical use:
 ```bash
 docker build -f docker/Dockerfile.prereqs.ubuntu -t laemp-prereqs-ubuntu .
 docker run -it --rm laemp-prereqs-ubuntu
-sudo ./laemp.sh -c -w nginx -d mariadb -m 5021 -S
+sudo ./laemp.sh -c -w nginx -d mariadb -m 5022 -S
 ```
 
 Use prereqs images to verify that the remaining configuration logic still works once the packages already exist.

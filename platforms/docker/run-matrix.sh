@@ -7,14 +7,16 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # shellcheck source=platforms/docker/lib.sh
 source "${SCRIPT_DIR}/lib.sh"
+# shellcheck source=platforms/docker/tls-preflight.sh
+source "${SCRIPT_DIR}/tls-preflight.sh"
 
 SUPPORTED_CASES=(
-  "debian-stock-nginx-mariadb-m5021|debian|stock|8.4|nginx|mariadb|5021|"
-  "debian-stock-apache-mariadb-m5021|debian|stock|8.4|apache|mariadb|5021|"
-  "debian-stock-nginx-pgsql-m5021|debian|stock|8.4|nginx|pgsql|5021|"
-  "debian-prereqs-nginx-mariadb-m5021|debian|prereqs|8.4|nginx|mariadb|5021|"
-  "debian-stock-nginx-mariadb-m5021-memcached|debian|stock|8.4|nginx|mariadb|5021|-M"
-  "debian-stock-nginx-mariadb-m5021-prometheus|debian|stock|8.4|nginx|mariadb|5021|-r"
+  "debian-stock-nginx-mariadb-m5022|debian|stock|8.4|nginx|mariadb|5022|"
+  "debian-stock-apache-mariadb-m5022|debian|stock|8.4|apache|mariadb|5022|"
+  "debian-stock-nginx-pgsql-m5022|debian|stock|8.4|nginx|pgsql|5022|"
+  "debian-prereqs-nginx-mariadb-m5022|debian|prereqs|8.4|nginx|mariadb|5022|"
+  "debian-stock-nginx-mariadb-m5022-memcached|debian|stock|8.4|nginx|mariadb|5022|-M"
+  "debian-stock-nginx-mariadb-m5022-prometheus|debian|stock|8.4|nginx|mariadb|5022|-r"
 )
 
 RESULTS_DIR=""
@@ -36,8 +38,8 @@ ADMIN_USERNAME="${MOODLE_ADMIN_USERNAME:-${MOODLE_ADMIN_USER:-admin}}"
 ADMIN_PASSWORD="${MOODLE_ADMIN_PASSWORD:-AdminPass123!}"
 ADMIN_EMAIL="demo@moodle.docker.test"
 ADMIN_CREDENTIALS_FILE="${MOODLE_ADMIN_CREDENTIALS_FILE:-/var/lib/laemp/moodle-admin-credentials.env}"
-HTTP_HOST_PORT="${LAEMP_DOCKER_HTTP_PORT:-80}"
-HTTPS_HOST_PORT="${LAEMP_DOCKER_HTTPS_PORT:-443}"
+HTTP_HOST_PORT="${LAEMP_DOCKER_HTTP_PORT:-18180}"
+HTTPS_HOST_PORT="${LAEMP_DOCKER_HTTPS_PORT:-18543}"
 DOCKER_BIND_HOST="${LAEMP_DOCKER_BIND_HOST:-127.0.0.1}"
 BUILT_LAEMP_ARGS=()
 
@@ -161,6 +163,7 @@ function verify_case() {
   docker_exec_root_shell "${container_name}" "test -f /var/www/html/${SITE_HOST}/config.php"
   docker_exec_root_shell "${container_name}" "curl -ksSfI https://127.0.0.1 | head -n 1" >"${combo_dir}/http_head_internal.txt"
   curl -ksSfI "${https_url}" | head -n 1 >"${combo_dir}/http_head_external.txt"
+  tls_preflight_check_url "${https_url}"
   curl -sSI "${http_url}" >"${combo_dir}/http_redirect_external.txt"
   grep -q "^HTTP/.* 301" "${combo_dir}/http_redirect_external.txt"
   grep -qi "^location: ${https_url}/" "${combo_dir}/http_redirect_external.txt"
@@ -292,7 +295,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 docker_require
-docker_require_tools awk curl date mktemp
+docker_require_tools awk curl date mktemp python3 openssl
 
 if [[ "${RUN_PLAYWRIGHT}" == "true" ]]; then
   require_playwright
@@ -334,8 +337,8 @@ for case_entry in "${SUPPORTED_CASES[@]}"; do
   mkdir -p "${combo_dir}"
   install_log="${combo_dir}/install.log"
   inspect_log="${combo_dir}/inspect.txt"
-  http_port="${HTTP_HOST_PORT}"
-  https_port="${HTTPS_HOST_PORT}"
+  http_port="$(docker_allocate_host_port "${DOCKER_BIND_HOST}" "${HTTP_HOST_PORT}")"
+  https_port="$(docker_allocate_host_port "${DOCKER_BIND_HOST}" "${HTTPS_HOST_PORT}" "${http_port}")"
   https_url="$(format_url "https" "${SITE_HOST}" "${https_port}")"
   image=$(docker_image_for_case "${distro}" "${image_set}")
   container_name="laemp-$(docker_slugify "${label}")"

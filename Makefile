@@ -6,7 +6,7 @@ CONTAINER_RUNTIME ?= docker
 COMPOSE_CMD ?= docker compose
 BATS ?= bats
 
-SMOKE_BATS := tests/bats/test_smoke.bats
+SMOKE_BATS := tests/bats/test_smoke.bats tests/bats/test_docker_ports.bats tests/bats/test_tls_preflight.bats
 CLI_BATS := tests/bats/test_laemp.bats
 INTEGRATION_BATS := tests/bats/test_integration.bats
 VERIFY_BATS := tests/bats/test_verify_moodle.bats
@@ -101,8 +101,8 @@ debian: ## Ensure the Debian compose container is running
 	@echo "$(GREEN)Useful commands$(NC)"
 	@echo "  $(COMPOSE_CMD) exec moodle-test-debian systemctl status laemp-installer --no-pager"
 	@echo "  $(COMPOSE_CMD) exec moodle-test-debian tail -f /var/log/laemp/install.log"
-	@echo "  $(COMPOSE_CMD) exec moodle-test-debian cat /var/lib/laemp/moodle-admin-credentials.env"
-	@echo "  curl -kI https://127.0.0.1"
+  @echo "  $(COMPOSE_CMD) exec moodle-test-debian cat /var/lib/laemp/moodle-admin-credentials.env"
+	@echo "  Use the HTTPS URL printed by compose-up, including the host port when it is not 443."
 
 .PHONY: debian-clean
 debian-clean: ## Recreate the Debian compose container
@@ -123,7 +123,7 @@ ubuntu-clean: ## Explain the current Ubuntu clean-slate container path
 	@exit 1
 
 .PHONY: docker-baseline
-docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, Moodle 5.2.1/stable502)
+docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, Moodle 5.2.2/stable502)
 	@$(MAKE) -C platforms/docker baseline
 
 .PHONY: docker-matrix
@@ -131,7 +131,7 @@ docker-matrix: ## Run the supported Docker matrix
 	@$(MAKE) -C platforms/docker matrix
 
 .PHONY: slicer
-slicer: ## Run the proven Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.1/stable502)
+slicer: ## Run the proven Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.2/stable502)
 	@$(MAKE) -C platforms/slicervm baseline
 
 .PHONY: slicer-matrix
@@ -139,7 +139,7 @@ slicer-matrix: ## Run the supported Slicer matrix with Playwright smoke checks
 	@$(MAKE) -C platforms/slicervm matrix
 
 .PHONY: lima
-lima: ## Run the proven Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.1/stable502)
+lima: ## Run the proven Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.2/stable502)
 	@$(MAKE) -C platforms/lima baseline
 
 .PHONY: lima-matrix
