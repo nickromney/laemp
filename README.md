@@ -132,6 +132,18 @@ The Slicer harness uses the system daemon at `~/slicer-mac`, not repo-local runt
 The Docker and Slicer test harnesses default to `admin` / `AdminPass123!` unless you override `MOODLE_ADMIN_PASSWORD`.
 `laemp.sh` now hardens remote archive downloads as well: `curl`/`wget` retry, and `.tgz`/`.tar.gz` payloads must pass `gzip -t` before they are reused or extracted. This came from a real Slicer failure where a Moodle 4.5 archive request returned a tiny non-gzip payload and previously failed later under `tar`.
 
+### Moodle 4.4.2+
+
+Moodle 4.4.2 and later in the 4.4 line are supported with PHP 8.3:
+
+```bash
+sudo ./laemp.sh -c -p 8.3 -w nginx -d mariadb -m 4042 -S
+```
+
+Use `-m 4042` for Moodle 4.4.2. The installer uses the `stable404` archive
+channel and keeps the application directory as the web root; Moodle 5.x uses
+its `/public` web root.
+
 ## Docker vs Slicer
 
 They are not substitutes for one another.
