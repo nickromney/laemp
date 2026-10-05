@@ -168,3 +168,42 @@ Current repo state reflects that split:
 - [`docs/container-testing.md`](docs/container-testing.md): container-first testing workflow and constraints.
 - [`docs/dockerfile-prereqs.md`](docs/dockerfile-prereqs.md): stock vs prereqs image model.
 - [`docs/roadmap.md`](docs/roadmap.md): active follow-up work.
+
+### Private installer credentials
+
+Admin passwords are saved in a private file, never printed in the progress log.
+Read the file with `sudo cat /var/lib/laemp/moodle-admin-credentials.env`.
+The parent directory must be owned by root and mode `0700`; files must be regular,
+root-owned, mode `0600`, and have one hard link. Symlinks and unsafe overrides are
+refused. If a previous version created the state directory with mode `0755`,
+first verify that it is a root-owned directory and contains the expected installer
+state, then explicitly restrict that directory to mode `0700` before rerunning.
+The installer does not change permissions on an arbitrary existing directory.
+
+Database passwords live under `/var/lib/laemp/credentials/`. Reruns reuse the
+saved password, including when the database is missing but its user still exists.
+A trusted root-owned `0600` legacy `/tmp/<database-user>-db_password` file is copied
+into private storage without changing its value or deleting the original. An
+existing database user without a trusted saved credential requires password
+recovery; the installer stops instead of generating a replacement or deleting
+its database. PostgreSQL reruns create only roles and databases that are absent.
+
+Credential-bearing commands suppress their child output because errors can echo
+password arguments. Failures are reported without those values. Dry-run mode
+skips private writes as well as credential-bearing mutations.
+
+Local security regressions exercise function definitions with synthetic values
+and fake database/PHP commands. They do not run the installer entry point:
+
+```sh
+python3 -m unittest discover -s tests/security -p 'test_*.py' -v
+```
+
+Bash 4 or newer is required by the test harness. Set `laemp_TEST_BASH` when
+`bash` on the development machine is an older version.
+
+A new admin credential is staged privately as `moodle-admin-credentials.env.pending`
+before the CLI install. The canonical file changes only after installation or an
+explicit password reset succeeds. An already-installed response keeps the previous
+canonical credential. A failed install leaves the pending file for recovery and
+reports its path without printing the password.
