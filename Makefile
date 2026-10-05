@@ -33,7 +33,7 @@ lint: ## Run shellcheck on shell entry points
 		tests/slicer/*.sh
 
 .PHONY: test
-test: test-smoke-bats test-cli-bats test-verify-bats ## Run fast repo-local test checks
+test: test-security test-smoke-bats test-cli-bats test-verify-bats ## Run fast repo-local test checks
 
 .PHONY: test-smoke-bats
 test-smoke-bats: ## Run fast BATS smoke tests
@@ -149,3 +149,7 @@ lima-matrix: ## Run the supported Lima matrix with Playwright smoke checks
 .PHONY: cleanup
 cleanup: ## Remove compose test containers, networks, and volumes
 	@./scripts/cleanup.sh
+
+.PHONY: test-security
+test-security: ## Test installer credential privacy with synthetic fixtures
+	@python3 -m unittest discover -s tests/security -p 'test_installer_*.py' -v

@@ -17,3 +17,6 @@ jobs:
 
       - name: Run lint target
         run: make lint
+
+      - name: Test private credential handling
+        run: make test-security
