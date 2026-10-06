@@ -90,6 +90,44 @@ gitleaks: ## Run gitleaks secret scanner
 gitleaks-protect: ## Run gitleaks against staged files
 	@gitleaks protect --staged --verbose
 
+TRIVY_IMAGES ?= laemp-debian:13 laemp-ubuntu:24.04 laemp-prereqs-debian laemp-prereqs-ubuntu
+TRIVY_SEVERITY ?= HIGH,CRITICAL
+# Pinned by digest, never a tag: Trivy's release pipeline was compromised in March 2026
+# (GHSA-69fq-xp46-6x23; 0.69.4-0.69.6 and `latest` were backdoored). 0.74.0 was the newest
+# release past a 7-day cooldown on 2026-10-06; Docker Hub and GHCR serve the same digest and
+# cosign verifies it was signed by Trivy's release workflow. Bump with scripts/trivy-candidate.sh.
+TRIVY_IMAGE ?= aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+TRIVY_SIGNER ?= ^https://github.com/aquasecurity/trivy/\.github/workflows/.+@refs/tags/v0\.74\.0$$
+
+.PHONY: trivy-verify
+trivy-verify: ## Verify the pinned Trivy image was signed by Trivy's release workflow
+	@command -v cosign >/dev/null || { echo "cosign is required to verify the Trivy image (brew install cosign)."; exit 1; }
+	@cosign verify "$(TRIVY_IMAGE)" \
+		--certificate-identity-regexp '$(TRIVY_SIGNER)' \
+		--certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null
+	@echo "$(GREEN)Verified $(TRIVY_IMAGE)$(NC)"
+
+.PHONY: trivy-scan
+trivy-scan: trivy-verify ## Scan locally built laemp test images with the pinned, verified Trivy (fails on fixable HIGH/CRITICAL)
+	@scan_dir="$$(mktemp -d)"; trap 'rm -rf "$$scan_dir"' EXIT; scanned=0; \
+	for image in $(TRIVY_IMAGES); do \
+		if ! $(CONTAINER_RUNTIME) image inspect "$$image" >/dev/null 2>&1; then \
+			echo "$(YELLOW)Skipping $$image (not built locally)$(NC)"; \
+			continue; \
+		fi; \
+		echo "$(YELLOW)Scanning $$image...$(NC)"; \
+		$(CONTAINER_RUNTIME) save -o "$$scan_dir/image.tar" "$$image" || exit 1; \
+		$(CONTAINER_RUNTIME) run --rm \
+			-v "$$scan_dir:/scans:ro" \
+			-v "$(HOME)/.cache/trivy:/root/.cache/trivy" \
+			"$(TRIVY_IMAGE)" image --input /scans/image.tar \
+			--severity $(TRIVY_SEVERITY) --ignore-unfixed --skip-version-check --exit-code 1 --no-progress || exit 1; \
+		rm -f "$$scan_dir/image.tar"; \
+		scanned=$$((scanned + 1)); \
+	done; \
+	if [ "$$scanned" -eq 0 ]; then echo "No laemp images found; build them with make docker-baseline first."; exit 1; fi; \
+	echo "$(GREEN)Scanned $$scanned image(s): no $(TRIVY_SEVERITY) vulnerabilities$(NC)"
+
 .PHONY: debian
 debian: ## Ensure the Debian compose container is running
 	@echo "$(YELLOW)Ensuring Debian container is running...$(NC)"
@@ -123,7 +161,7 @@ ubuntu-clean: ## Explain the current Ubuntu clean-slate container path
 	@exit 1
 
 .PHONY: docker-baseline
-docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, Moodle 5.2.2/stable502)
+docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, Moodle 5.2.4/stable502)
 	@$(MAKE) -C platforms/docker baseline
 
 .PHONY: docker-matrix
@@ -131,7 +169,7 @@ docker-matrix: ## Run the supported Docker matrix
 	@$(MAKE) -C platforms/docker matrix
 
 .PHONY: slicer
-slicer: ## Run the proven Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.2/stable502)
+slicer: ## Run the proven Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.4/stable502)
 	@$(MAKE) -C platforms/slicervm baseline
 
 .PHONY: slicer-matrix
@@ -139,7 +177,7 @@ slicer-matrix: ## Run the supported Slicer matrix with Playwright smoke checks
 	@$(MAKE) -C platforms/slicervm matrix
 
 .PHONY: lima
-lima: ## Run the proven Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.2/stable502)
+lima: ## Run the proven Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.4/stable502)
 	@$(MAKE) -C platforms/lima baseline
 
 .PHONY: lima-matrix
