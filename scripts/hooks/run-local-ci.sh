@@ -36,7 +36,7 @@ cat <<'EOF'
 laemp pre-push local CI gate
 
 Running:
-  make lint
+  uv run --locked make lint
 
 Skip only when you have a reason:
   LEFTHOOK=0 git push
@@ -46,9 +46,9 @@ EOF
 
 export LAEMP_LOCAL_CI_IN_PROGRESS=1
 
-if ! make lint; then
-  hook_fail "pre-push gate failed: make lint"
+if ! uv run --locked make lint; then
+  hook_fail "pre-push gate failed: uv run --locked make lint"
   exit 1
 fi
 
-hook_ok "pre-push gate passed: make lint"
+hook_ok "pre-push gate passed: uv run --locked make lint"

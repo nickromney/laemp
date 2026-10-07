@@ -33,3 +33,9 @@ Conventions that matter when editing:
 - Monitoring (`-r`) runs Prometheus on 9090 with exporters on 9100 (node), 9113 (nginx), 9117 (Apache) and 9253 (PHP-FPM).
 - `--skip-db-server` skips installing a database server, for runs against an existing one. In containers, `service_manage` uses `is_container` to start daemons directly instead of through systemd.
 - Test platforms live under `platforms/` (docker, lima, slicervm); `tests/docker` and `tests/slicer` are shims that forward there.
+
+The source-owned `.agent/contract.json` declares existing local verification actions,
+their effects and acceptance scope, and lessons bound to exact source/test bytes.
+Run the full local gate with `lefthook run pre-push --force`; a plain manual run
+can select no files. Remote workflows publish allowed artifacts only. Local
+fixture acceptance does not establish a live cloud, device or deployment state.
