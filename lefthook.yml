@@ -10,3 +10,5 @@ pre-push:
       run: uv run --locked scripts/hooks/run-local-ci.sh --execute
     installer-contracts:
       run: uv run --locked make test
+    gate-refusal-contract:
+      run: bats tests/bats/local-gate-refusal.bats

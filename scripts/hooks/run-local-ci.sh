@@ -22,12 +22,13 @@ if [[ "${#HOOK_ARGS[@]}" -gt 0 ]]; then
 fi
 
 if hook_skip_requested; then
-  hook_print_skip_and_exit
+  hook_fail "skip_requested: verification did not execute"
+  exit 1
 fi
 
 if [[ "${LAEMP_LOCAL_CI_IN_PROGRESS:-}" == "1" ]]; then
-  hook_warn "LAEMP_LOCAL_CI_IN_PROGRESS=1; skipping run-local-ci.sh to avoid recursive local CI"
-  exit 0
+  hook_fail "recursive_gate: verification did not execute"
+  exit 1
 fi
 
 cd "${HOOKS_REPO_ROOT}"
@@ -38,10 +39,8 @@ laemp pre-push local CI gate
 Running:
   uv run --locked make lint
 
-Skip only when you have a reason:
-  LEFTHOOK=0 git push
-  LAEMP_SKIP_HOOKS=1 git push
-  git push --no-verify
+Full acceptance requires every configured check.
+Explicit skip and recursive execution requests refuse verification.
 EOF
 
 export LAEMP_LOCAL_CI_IN_PROGRESS=1

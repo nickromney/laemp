@@ -15,7 +15,8 @@
       "effects": [
         "read",
         "local_write",
-        "process"
+        "process",
+        "network"
       ],
       "acceptance_scope": "fixture",
       "inputs": [
@@ -25,7 +26,33 @@
         "pyproject.toml",
         "uv.lock",
         "tests/security/test_installer_secrecy.py",
-        "laemp.sh"
+        "laemp.sh",
+        ".npmrc",
+        "platforms/docker/tls-preflight.sh",
+        "scripts/hooks/check-staged-shell.sh",
+        "scripts/hooks/lib.sh",
+        "scripts/hooks/run-local-ci.sh",
+        "tests/README.md",
+        "tests/bats/test_docker_ports.bats",
+        "tests/bats/test_integration.bats",
+        "tests/bats/test_laemp.bats",
+        "tests/bats/test_smoke.bats",
+        "tests/bats/test_tls_preflight.bats",
+        "tests/bats/test_verify_moodle.bats",
+        "tests/docker/lib.sh",
+        "tests/docker/run-baseline.sh",
+        "tests/docker/run-matrix.sh",
+        "tests/e2e/moodle.spec.ts",
+        "tests/e2e/slicer-smoke.spec.ts",
+        "tests/e2e/vm-smoke.spec.ts",
+        "tests/security/test_installer_backend_flow.py",
+        "tests/security/test_installer_storage.py",
+        "tests/slicer/lib.sh",
+        "tests/slicer/run-matrix.sh",
+        "tests/slicer/run-test.sh",
+        "tests/slicer/test-laemp.sh",
+        "verify-moodle.sh",
+        "tests/bats/local-gate-refusal.bats"
       ],
       "requires": [],
       "recovery": "Read the failed owner job; repair its source or declared prerequisite, then rerun the full local gate. Fixture acceptance does not authorize cloud/device deployment."
@@ -43,12 +70,19 @@
       "effects": [
         "read",
         "local_write",
-        "process"
+        "process",
+        "network"
       ],
       "acceptance_scope": "fixture",
       "inputs": [
         "tests/security/test_installer_secrecy.py",
-        "laemp.sh"
+        "laemp.sh",
+        "Makefile",
+        "package.json",
+        "pyproject.toml",
+        "uv.lock",
+        "lefthook.yml",
+        ".npmrc"
       ],
       "requires": [],
       "recovery": "Inspect the named source/test and reproduce the failing synthetic case before reusing this lesson."
@@ -75,6 +109,28 @@
         }
       ],
       "verify_action": "verify-lesson"
+    },
+    {
+      "id": "full-gate-refusal",
+      "when": [
+        "gate",
+        "skip",
+        "recursive",
+        "verification"
+      ],
+      "summary": "Skipped or recursive full-gate execution is not acceptance. Execute mode refuses those conditions before effects; preview remains read-only. The required fixture job proves both refusals and the preview control.",
+      "owner": "scripts/hooks/run-local-ci.sh",
+      "basis": [
+        {
+          "path": "scripts/hooks/run-local-ci.sh",
+          "sha256": "dea29cf9e53eddbe5c14344a2dfd3e653aaceb3632c1f14004c4029ad1822bbe"
+        },
+        {
+          "path": "tests/bats/local-gate-refusal.bats",
+          "sha256": "fcffe678437bac6a8a552187086a116bad44fd185ec0ba0ac1799467d37dcf86"
+        }
+      ],
+      "verify_action": "verify"
     }
   ]
 }
