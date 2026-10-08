@@ -1,10 +1,9 @@
 # Repository Guidelines
 
-For system ownership, action effects, verification scope or a new agent task,
-read [the operating model](docs/agent-system.md). Detailed product plans
-remain at the linked owners; historical observations retain their dates.
+Use this file for durable, concise guidance for coding agents in this repository.
 
 - Before changing code, read `README.md` and the nearest package/build manifest for the commands and constraints that apply.
+- Add confirmed project-specific commands, conventions, and constraints here when they become durable.
 
 ## How laemp.sh is built
 
@@ -34,8 +33,11 @@ Conventions that matter when editing:
 - `--skip-db-server` skips installing a database server, for runs against an existing one. In containers, `service_manage` uses `is_container` to start daemons directly instead of through systemd.
 - Test platforms live under `platforms/` (docker, lima, slicervm); `tests/docker` and `tests/slicer` are shims that forward there.
 
-The source-owned `.agent/contract.json` declares existing local verification actions,
-their effects and acceptance scope, and lessons bound to exact source/test bytes.
-Run the full local gate with `lefthook run pre-push --force`; a plain manual run
-can select no files. Remote workflows publish allowed artifacts only. Local
-fixture acceptance does not establish a live cloud, device or deployment state.
+## Verify
+
+- Fast local suite: `make test` (security, smoke, CLI and verifier BATS). Pre-push gate: `lefthook run pre-push --force`, which runs `scripts/hooks/run-local-ci.sh --execute`, `uv run --locked make test` and `bats tests/bats/local-gate-refusal.bats`.
+- Pick one validation strand per change: `make test-security` for credential privacy (synthetic fixtures; never copy credential values); `make test-verify-bats` for verifier parsing; `make docker-baseline` (see `docs/container-testing.md`) for package and bootstrap; `platforms/lima/README.md` or `platforms/slicervm/README.md` for VM runs.
+- Container success is not VM-faithful service acceptance. Loopback test platforms are not deployable public site identities.
+- `/var/lib/laemp/moodle-admin-credentials.env` is private host state; report only whether credential handoff succeeded.
+- `make hooks` installs lefthook-managed Git hooks (local mutation).
+- Local fixture acceptance does not establish a live cloud, device or deployment state.

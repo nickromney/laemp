@@ -49,25 +49,3 @@ This Docker pass is complete when:
 1. the Debian stock baseline is reproducible by another developer
 2. the baseline command and artifacts are documented explicitly
 3. Docker remains a quick validation path, not a pretend substitute for real VM coverage
-
-## Agent operation and plan status
-
-For the current ownership, action-effect and evidence contracts, use [the operating model](agent-system.md). Its implemented plan covers agent navigation and documentation. Feature proposals below remain proposals until their own acceptance evidence is recorded; dated observations retain their original scope.
-
-## Implemented validation selection matrix
-
-| Changed behavior | Cheapest relevant gate | Attended acceptance |
-| --- | --- | --- |
-| Help/argument parsing | `make test-smoke-bats`, `make test-cli-bats` | No provisioning needed |
-| Credential privacy | `make test-security` synthetic fixtures | Credential file exists and remains private on the guest; never copy its values |
-| Verifier parsing/decisions | `make test-verify-bats` | `verify-moodle.sh` against a running installation |
-| Container package/bootstrap | `docs/container-testing.md`, `docker/` owner | Docker baseline: real package/app checks, no systemd parity claim |
-| Local VM | `platforms/lima/README.md` | Guest install/services with selected Lima hostname and loopback forwarding |
-| VM-faithful lifecycle | `platforms/slicervm/README.md` | Slicer guest with systemd and independent verifier/browser result |
-
-The current repo exposes Docker, Lima and Slicer strands. The older two-strand
-roadmap text describes its original pass, not the complete current inventory.
-`make test` composes fast repo-local fixtures. Record revision, guest OS/image,
-PHP/database/Moodle tuple, platform identity, endpoint and verifier outcome for
-runtime acceptance. Preserve distinct platform hostnames/ports and existing
-volumes while iterating. Fresh credential files remain host-private evidence.
