@@ -2,6 +2,9 @@
   "name": "laemp-e2e-tests",
   "version": "1.0.0",
   "description": "End-to-end tests for the laemp stack using Playwright",
+  "engines": {
+    "npm": ">=11"
+  },
   "scripts": {
     "test": "playwright test",
     "test:vm:smoke": "playwright test tests/e2e/vm-smoke.spec.ts",
@@ -20,7 +23,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@playwright/test": "^1.49.0",
+    "@playwright/test": "1.63.0",
     "@types/node": "^22.0.0",
     "dotenv": "^16.6.1"
   }

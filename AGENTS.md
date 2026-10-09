@@ -33,14 +33,11 @@ Conventions that matter when editing:
 - `--skip-db-server` skips installing a database server, for runs against an existing one. In containers, `service_manage` uses `is_container` to start daemons directly instead of through systemd.
 - Test platforms live under `platforms/` (docker, lima, slicervm); `tests/docker` and `tests/slicer` are shims that forward there.
 
-## Codex workflow
+## Verify
 
-- Keep this file short, concrete, and repo-specific. Capture layout, commands, conventions, constraints, and done criteria; move repeatable procedures to scoped skills/docs.
-- For each task, state the goal, relevant context/files, constraints, and verification criteria. Plan complex or ambiguous work before editing.
-- Keep one thread per coherent outcome. Read only relevant files; delegate bounded exploration/tests when useful, and use worktrees for parallel work.
-- Verify changes with focused tests and applicable lint, formatting, type checks, builds, and diff review; report checks run or skipped.
-- Prefer least-privilege permissions and dry-runs. Add MCP/tools only when they remove a real repeated loop.
-- Use background or scheduled work for long-running or recurring tasks instead of continuous polling.
-- After a repeated mistake or correction, update this file with the smallest actionable rule that would prevent it.
-
-Reference: https://learn.chatgpt.com/guides/best-practices
+- Fast local suite: `make test` (security, smoke, CLI and verifier BATS). Pre-push gate: `lefthook run pre-push --force`, which runs `scripts/hooks/run-local-ci.sh --execute`, `uv run --locked make test` and `bats tests/bats/local-gate-refusal.bats`.
+- Pick one validation strand per change: `make test-security` for credential privacy (synthetic fixtures; never copy credential values); `make test-verify-bats` for verifier parsing; `make docker-baseline` (see `docs/container-testing.md`) for package and bootstrap; `platforms/lima/README.md` or `platforms/slicervm/README.md` for VM runs.
+- Container success is not VM-faithful service acceptance. Loopback test platforms are not deployable public site identities.
+- `/var/lib/laemp/moodle-admin-credentials.env` is private host state; report only whether credential handoff succeeded.
+- `make hooks` installs lefthook-managed Git hooks (local mutation).
+- Local fixture acceptance does not establish a live cloud, device or deployment state.

@@ -190,4 +190,4 @@ cleanup: ## Remove compose test containers, networks, and volumes
 
 .PHONY: test-security
 test-security: ## Test installer credential privacy with synthetic fixtures
-	@python3 -m unittest discover -s tests/security -p 'test_installer_*.py' -v
+	@uv run --locked python -m unittest discover -s tests/security -p 'test_installer_*.py' -v
