@@ -191,3 +191,6 @@ cleanup: ## Remove compose test containers, networks, and volumes
 .PHONY: test-security
 test-security: ## Test installer credential privacy with synthetic fixtures
 	@uv run --locked python -m unittest discover -s tests/security -p 'test_installer_*.py' -v
+
+VERIFY_SKILL := skills/verify-laemp
+include $(VERIFY_SKILL)/verify.mk
