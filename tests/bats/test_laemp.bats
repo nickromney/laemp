@@ -661,3 +661,41 @@ load_release_helpers() {
   [ "$(moodle_postgres_major 5030)" = "17" ]
   [ "$(moodle_postgres_major 4042)" = "16" ]
 }
+
+# ==============================================================================
+# DRY-RUN FILE EDITS
+# ==============================================================================
+
+load_replace_file_value() {
+  # laemp.sh runs main when sourced, so load only the function under test.
+  eval "$(awk '/^function replace_file_value\(\)/,/^}/' ./laemp.sh)"
+  log() { :; }
+  run_sensitive_command() {
+    if [[ $1 == --makes-changes ]]; then
+      shift
+      [[ ${DRY_RUN_CHANGES:-false} == true ]] && return 0
+    fi
+    "$@"
+  }
+}
+
+@test "dry-run config edits need no write access to an installed config.php" {
+  load_replace_file_value
+  config="$BATS_TEST_TMPDIR/config.php"
+  printf '%s\n' "\$CFG->dbhost = 'localhost';" > "$config"
+  chmod 0444 "$config"
+  DRY_RUN_CHANGES=true
+  run replace_file_value "\$CFG->dbhost\s*=\s*'localhost';" "\$CFG->dbhost = 'db';" "$config"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$config")" = "\$CFG->dbhost = 'localhost';" ]
+}
+
+@test "real config edits still lock and update config.php" {
+  load_replace_file_value
+  config="$BATS_TEST_TMPDIR/config.php"
+  printf '%s\n' "\$CFG->dbhost = 'localhost';" > "$config"
+  DRY_RUN_CHANGES=false
+  run replace_file_value "\$CFG->dbhost\s*=\s*'localhost';" "\$CFG->dbhost = 'db';" "$config"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$config")" = "\$CFG->dbhost = 'db';" ]
+}

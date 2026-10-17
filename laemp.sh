@@ -986,8 +986,13 @@ function replace_file_value() {
 
   # Acquire lock on file using file descriptor 200
   # Use >> instead of > to avoid truncating the file
-  exec 200>>"$file_path"
-  flock -x 200 || exit 1
+  # A dry run never writes, so it must not need write access to take the lock.
+  local locked=false
+  if [[ ${DRY_RUN_CHANGES:-false} != true ]]; then
+    exec 200>>"$file_path"
+    flock -x 200 || exit 1
+    locked=true
+  fi
 
   # Check if new value already exists (escaped for grep)
   local escaped_new_value
@@ -1002,7 +1007,9 @@ function replace_file_value() {
   fi
 
   # Release lock
-  flock -u 200
+  if [[ $locked == true ]]; then
+    flock -u 200
+  fi
 
 }
 
