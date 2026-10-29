@@ -1305,6 +1305,11 @@ function apache_ensure() {
   if [[ "${SKIP_PACKAGE_INSTALLS}" == "true" ]]; then
     log verbose "Skipping Apache installation due to SKIP_PACKAGE_INSTALLS"
     php_verify --exit-on-failure
+    if $FPM_ENSURE; then
+      php_security_verify_fpm || exit 1
+    else
+      php_security_verify_apache_module || exit 1
+    fi
     apache_verify --exit-on-failure
     return 0
   fi
@@ -1369,6 +1374,7 @@ function apache_ensure() {
 
       # Now install PHP-FPM packages
       package_ensure "php${PHP_VERSION_MAJOR_MINOR}-fpm"
+      php_security_verify_fpm || exit 1
       package_ensure "libapache2-mod-fcgid"
 
       log verbose "Configuring Apache for FPM..."
@@ -1385,6 +1391,7 @@ function apache_ensure() {
     else
       log verbose "Configuring Apache without FPM..."
       package_ensure "libapache2-mod-php${PHP_VERSION_MAJOR_MINOR}"
+      php_security_verify_apache_module || exit 1
     fi
 
     # Check Apache status before restart/reload
@@ -2588,6 +2595,9 @@ function nginx_ensure() {
 
   if [[ "${SKIP_PACKAGE_INSTALLS}" == "true" ]]; then
     log verbose "Skipping Nginx installation due to SKIP_PACKAGE_INSTALLS"
+    if $FPM_ENSURE; then
+      php_security_verify_fpm || exit 1
+    fi
     nginx_verify --exit-on-failure
     return 0
   fi
@@ -2678,6 +2688,7 @@ function nginx_ensure() {
 
     # Now install PHP-FPM package
     package_ensure "php${PHP_VERSION_MAJOR_MINOR}-fpm"
+    php_security_verify_fpm || exit 1
 
     # IMPORTANT: Do NOT start PHP-FPM here!
     # Other PHP extensions may still be installed later (via moodle_ensure),
@@ -3000,6 +3011,7 @@ php_ensure() {
   if [[ "${SKIP_PACKAGE_INSTALLS}" == "true" ]]; then
     log verbose "Skipping PHP installation due to SKIP_PACKAGE_INSTALLS"
     php_verify --exit-on-failure
+    php_security_verify_cli || exit 1
     return 0
   fi
 
@@ -3008,6 +3020,7 @@ php_ensure() {
 
   log verbose "Checking if PHP is already installed and PHP_ALONGSIDE is not set..."
   if tool_exists "php" && [[ "${PHP_ALONGSIDE:-false}" == "false" ]]; then
+    php_security_verify_cli || exit 1
     return 0
   fi
 
@@ -3051,8 +3064,172 @@ php_ensure() {
     # shellcheck disable=SC2086
     package_ensure $php_package
 
-    # Verify PHP installation at end of function
+    # Verify the selected CLI runtime after package installation.
     php_verify --exit-on-failure
+    php_security_verify_cli || exit 1
+  fi
+}
+
+php_security_verify_version() {
+  local version="$1" source="$2" branch patch floor
+  if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    log error "Cannot parse PHP security version from $source"
+    return 1
+  fi
+  branch="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+  patch="${BASH_REMATCH[3]}"
+  case "$branch" in
+    8.2) floor=35 ;;
+    8.3) floor=36 ;;
+    8.4) floor=27 ;;
+    8.5) floor=12 ;;
+    *) log error "No reviewed PHP security floor for $version"; return 1 ;;
+  esac
+  if [[ "$branch" != "$PHP_VERSION_MAJOR_MINOR" ]]; then
+    log error "$source reports PHP $version; expected patched PHP ${PHP_VERSION_MAJOR_MINOR} (unknown backports require separate verification)"
+    return 1
+  fi
+  if (( 10#$patch < floor )); then
+    php_security_verify_backport "$source" "$version" || {
+      log error "$source reports PHP $version; expected patched PHP ${PHP_VERSION_MAJOR_MINOR} (unknown backports require separate verification)"
+      return 1
+    }
+  fi
+}
+
+php_security_verify_backport() {
+  local source="$1" version="$2" package path owner checksums expected actual status
+  [[ "$PHP_VERSION_MAJOR_MINOR" == 8.3 && "$version" == 8.3.6 ]] || return 1
+  [[ "${DISTRO:-}" == Ubuntu && "${CODENAME:-}" == noble ]] || return 1
+  case "$source" in
+    php|php8.3) package=php8.3-cli; path="$(command -v "$source")" ;;
+    php-fpm|php-fpm8.3) package=php8.3-fpm; path="$(command -v "$source")" ;;
+    libapache2-mod-php8.3) package="$source"; path=/usr/lib/apache2/modules/libphp8.3.so ;;
+    *) return 1 ;;
+  esac
+  [[ -n "$path" ]] || return 1
+  path="$(readlink -f -- "$path")" || return 1
+  status="$(dpkg-query -W -f='${db:Status-Status} ${Version}' "$package" 2>/dev/null)" || return 1
+  [[ "$status" == 'installed 8.3.6-0ubuntu0.24.04.13' ]] || return 1
+  owner="$(dpkg-query -S "$path" 2>/dev/null)" || return 1
+  [[ "$owner" == "$package: $path" ]] || return 1
+  checksums="$(dpkg-query --control-show "$package" md5sums 2>/dev/null)" || return 1
+  expected="$(printf '%s\n' "$checksums" | awk -v file="${path#/}" '$1 ~ /^[0-9a-f]{32}$/ && $2 == file { digest=$1; count++ } END { if (count != 1) exit 1; print digest }')" || return 1
+  actual="$(md5sum -- "$path" 2>/dev/null)" || return 1
+  [[ "${actual%% *}" == "$expected" ]]
+}
+
+php_security_verify_binary() {
+  local binary="$1" output version branch package path
+  if ! command -v "$binary" >/dev/null 2>&1; then
+    log error "Cannot find selected PHP security runtime $binary"
+    return 1
+  fi
+  if ! output=$("$binary" -v 2>/dev/null); then
+    log error "Cannot verify PHP security version from $binary"
+    return 1
+  fi
+  if [[ ! "$output" =~ ^PHP[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)[[:space:]] ]]; then
+    log error "Cannot parse PHP security version from $binary"
+    return 1
+  fi
+  version="${BASH_REMATCH[1]}"
+  php_security_verify_version "$version" "$binary" || return 1
+  if [[ "${SKIP_PACKAGE_INSTALLS:-false}" != true ]]; then
+    branch="${version%.*}"
+    case "$binary" in
+      php|php[0-9]* ) package="php${branch}-cli" ;;
+      php-fpm|php-fpm[0-9]* ) package="php${branch}-fpm" ;;
+      *) log error "Cannot map selected PHP runtime $binary to a package"; return 1 ;;
+    esac
+    path="$(command -v "$binary")" || return 1
+    php_security_verify_package_file "$package" "$path" "$version" || return 1
+  fi
+  PHP_SECURITY_VERSION="$version"
+  log info "Verified $binary PHP $version security floor"
+}
+
+php_security_verify_package_file() {
+  local package="$1" requested_path="$2" runtime_version="$3" status package_version owner checksums expected actual path
+  status="$(dpkg-query -W -f='${db:Status-Status} ${Version}' "$package" 2>/dev/null)" || {
+    log error "Cannot verify installed PHP package $package"
+    return 1
+  }
+  [[ "$status" =~ ^installed[[:space:]]+ ]] || {
+    log error "PHP package $package is not installed"
+    return 1
+  }
+  package_version="${status#installed }"
+  if [[ ! "$package_version" =~ ^([0-9]+:)?([0-9]+\.[0-9]+\.[0-9]+)(-[0-9][0-9A-Za-z.+~]*)?$ ]] || [[ "${BASH_REMATCH[2]}" != "$runtime_version" ]]; then
+    log error "PHP package $package version $package_version does not match runtime $runtime_version"
+    return 1
+  fi
+  path="$(readlink -f -- "$requested_path")" || return 1
+  owner="$(dpkg-query -S "$path" 2>/dev/null)" || {
+    log error "Cannot verify package ownership of $requested_path"
+    return 1
+  }
+  [[ "$owner" == "$package: $path" ]] || {
+    log error "Selected PHP executable $requested_path is not owned by $package"
+    return 1
+  }
+  checksums="$(dpkg-query --control-show "$package" md5sums 2>/dev/null)" || {
+    log error "Cannot read package checksums for $package"
+    return 1
+  }
+  expected="$(printf '%s\n' "$checksums" | awk -v file="${path#/}" 'length($1) == 32 && $1 ~ /^[0-9a-f]+$/ && $2 == file { digest=$1; count++ } END { if (count != 1) exit 1; print digest }')" || {
+    log error "Cannot find an unambiguous package checksum for $path"
+    return 1
+  }
+  actual="$(md5sum -- "$path" 2>/dev/null)" || return 1
+  [[ "${actual%% *}" == "$expected" ]] || {
+    log error "Selected PHP executable $path does not match $package's installed file checksum"
+    return 1
+  }
+  log verbose "Verified $package version $package_version owns the selected runtime file"
+}
+
+php_security_verify_cli() {
+  [[ "${DRY_RUN_CHANGES:-false}" == true ]] && return 0
+  local binary=php
+  [[ "${PHP_ALONGSIDE:-false}" == true ]] && binary="php${PHP_VERSION_MAJOR_MINOR}"
+  php_security_verify_binary "$binary"
+}
+
+php_security_verify_fpm() {
+  [[ "${DRY_RUN_CHANGES:-false}" == true ]] && return 0
+  local binary="php-fpm${PHP_VERSION_MAJOR_MINOR}" cli_version
+  if [[ "${SKIP_PACKAGE_INSTALLS:-false}" == true ]] && ! command -v "$binary" >/dev/null 2>&1; then
+    binary=php-fpm
+  fi
+  php_security_verify_cli || return 1
+  cli_version="$PHP_SECURITY_VERSION"
+  php_security_verify_binary "$binary" || return 1
+  if [[ "$PHP_SECURITY_VERSION" != "$cli_version" ]]; then
+    log error "PHP CLI $cli_version and FPM $PHP_SECURITY_VERSION do not match"
+    return 1
+  fi
+}
+
+php_security_verify_apache_module() {
+  [[ "${DRY_RUN_CHANGES:-false}" == true ]] && return 0
+  local package="libapache2-mod-php${PHP_VERSION_MAJOR_MINOR}" status version cli_version
+  php_security_verify_cli || return 1
+  cli_version="$PHP_SECURITY_VERSION"
+  if ! status="$(dpkg-query -W -f='${db:Status-Status} ${Version}' "$package" 2>/dev/null)"; then
+    log error "Cannot verify installed PHP module package $package"
+    return 1
+  fi
+  if [[ ! "$status" =~ ^installed[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)(-[0-9][0-9A-Za-z.+~]*)?$ ]]; then
+    log error "Cannot parse installed PHP module package $package"
+    return 1
+  fi
+  version="${BASH_REMATCH[1]}"
+  php_security_verify_version "$version" "$package" || return 1
+  php_security_verify_package_file "$package" "/usr/lib/apache2/modules/libphp${PHP_VERSION_MAJOR_MINOR}.so" "$version" || return 1
+  if [[ "$version" != "$cli_version" ]]; then
+    log error "PHP CLI $cli_version and Apache module $version do not match"
+    return 1
   fi
 }
 
@@ -4169,6 +4346,15 @@ function main() {
   if $MOODLE_ENSURE; then
     log verbose "Ensuring Moodle..."
     moodle_ensure
+  fi
+
+  # Package installation for extensions can change PHP package revisions.
+  if $FPM_ENSURE; then
+    php_security_verify_fpm || exit 1
+  elif $APACHE_ENSURE; then
+    php_security_verify_apache_module || exit 1
+  elif $PHP_ENSURE; then
+    php_security_verify_cli || exit 1
   fi
 
   # Start PHP-FPM after all PHP packages/extensions are installed
