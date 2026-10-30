@@ -1,6 +1,5 @@
 # Node.js / npm
 node_modules/
-package-lock.json
 
 # Playwright
 playwright-report/
