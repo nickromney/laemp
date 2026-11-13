@@ -37,6 +37,7 @@ Conventions that matter when editing:
 
 - Fast local suite: `make test` (security, smoke, CLI and verifier BATS). Pre-push gate: `lefthook run pre-push --force`, which runs `scripts/hooks/run-local-ci.sh --execute`, `uv run --locked make test` and `bats tests/bats/local-gate-refusal.bats`.
 - Pick one validation strand per change: `make test-security` for credential privacy (synthetic fixtures; never copy credential values); `make test-verify-bats` for verifier parsing; `make docker-baseline` (see `docs/container-testing.md`) for package and bootstrap; `platforms/lima/README.md` or `platforms/slicervm/README.md` for VM runs.
+- Docker runners reuse an existing image unless `--rebuild-images` is supplied. After installer edits, use `platforms/docker/run-baseline.sh --rebuild-images` to test the current code in a fresh container.
 - Container success is not VM-faithful service acceptance. Loopback test platforms are not deployable public site identities.
 - `/var/lib/laemp/moodle-admin-credentials.env` is private host state; report only whether credential handoff succeeded.
 - `make hooks` installs lefthook-managed Git hooks (local mutation).

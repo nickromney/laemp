@@ -91,6 +91,33 @@ provision_fixture
         operations = trace.read_text().splitlines() if trace.exists() else []
         return status, output, logged, credentials, password, operations
 
+    def test_postgres_credential_path_is_available_under_nounset(self):
+        for project in harness.PROJECTS:
+            with self.subTest(project=project):
+                source = (harness.TEST_ROOT / project / "functions.sh").read_text()
+                block = self.block(project, "postgres")
+                log_line = '    log info "Password stored in: ${password_file}"'
+                self.assertIn(log_line, source)
+                state = self.root / f"path-{project}"
+                command = f"""
+set -u
+LAEMP_STATE_DIR={shlex.quote(str(state))}
+DB_USER=fixture
+DB_NAME=fixture
+sudo() {{ printf '1\\n'; }}
+run_credential_helper() {{ printf 'fixture-password\\n'; }}
+run_command() {{ :; }}
+log() {{ printf '%s\\n' "$*"; }}
+provision_fixture() {{
+{block}
+{log_line}
+}}
+provision_fixture
+"""
+                status, output, _, _ = self.run_functions(project, command)
+                self.assertEqual(status, 0, output)
+                self.assertIn(str(state / "credentials/fixture-db_password"), output)
+
     def test_existing_role_and_missing_database_reuses_saved_password(self):
         for project in harness.PROJECTS:
             for backend in ("mysql", "postgres"):

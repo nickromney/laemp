@@ -163,33 +163,33 @@ function verify_case() {
   http_url="$(format_url "http" "${SITE_HOST}" "${http_port}")"
   https_url="$(format_url "https" "${SITE_HOST}" "${https_port}")"
 
-  docker_exec_root_shell "${container_name}" "test -f /var/www/html/${SITE_HOST}/config.php"
-  docker_exec_root_shell "${container_name}" "curl -ksSfI https://127.0.0.1 | head -n 1" >"${combo_dir}/http_head_internal.txt"
-  curl -ksSfI "${https_url}" | head -n 1 >"${combo_dir}/http_head_external.txt"
-  tls_preflight_check_url "${https_url}"
-  curl -sSI "${http_url}" >"${combo_dir}/http_redirect_external.txt"
-  grep -q "^HTTP/.* 301" "${combo_dir}/http_redirect_external.txt"
-  grep -qi "^location: ${https_url}/" "${combo_dir}/http_redirect_external.txt"
+  docker_exec_root_shell "${container_name}" "test -f /var/www/html/${SITE_HOST}/config.php" || return 1
+  docker_exec_root_shell "${container_name}" "curl -ksSfI https://127.0.0.1" >"${combo_dir}/http_head_internal.txt" || return 1
+  curl -ksSfI "${https_url}" | head -n 1 >"${combo_dir}/http_head_external.txt" || return 1
+  tls_preflight_check_url "${https_url}" || return 1
+  curl -sSI "${http_url}" >"${combo_dir}/http_redirect_external.txt" || return 1
+  grep -q "^HTTP/.* 301" "${combo_dir}/http_redirect_external.txt" || return 1
+  grep -qi "^location: ${https_url}/" "${combo_dir}/http_redirect_external.txt" || return 1
 
   if [[ "${web_server}" == "nginx" ]]; then
-    docker_exec_root_shell "${container_name}" "pgrep -f '/usr/sbin/nginx' >/dev/null"
-    docker_exec_root_shell "${container_name}" "pidof php-fpm8.4 >/dev/null 2>&1 || pidof php-fpm >/dev/null 2>&1"
+    docker_exec_root_shell "${container_name}" "pgrep -f '/usr/sbin/nginx' >/dev/null" || return 1
+    docker_exec_root_shell "${container_name}" "pidof php-fpm8.4 >/dev/null 2>&1 || pidof php-fpm >/dev/null 2>&1" || return 1
   else
-    docker_exec_root_shell "${container_name}" "pgrep -f 'apache2' >/dev/null"
+    docker_exec_root_shell "${container_name}" "pgrep -f 'apache2' >/dev/null" || return 1
   fi
 
   if [[ "${database}" == "pgsql" ]]; then
-    docker_exec_root_shell "${container_name}" "service postgresql status >/dev/null 2>&1 || pidof postgres >/dev/null 2>&1"
+    docker_exec_root_shell "${container_name}" "service postgresql status >/dev/null 2>&1 || pidof postgres >/dev/null 2>&1" || return 1
     table_count=$(
       docker_exec_root_shell "${container_name}" \
         "sudo -u postgres psql -d moodle -Atc \"select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'mdl_%';\""
-    )
+    ) || return 1
   else
-    docker_exec_root_shell "${container_name}" "pidof mariadbd >/dev/null 2>&1 || pidof mysqld >/dev/null 2>&1"
+    docker_exec_root_shell "${container_name}" "pidof mariadbd >/dev/null 2>&1 || pidof mysqld >/dev/null 2>&1" || return 1
     table_count=$(
       docker_exec_root_shell "${container_name}" \
         "mysql -Nse \"select count(*) from information_schema.tables where table_schema = 'moodle' and table_name like 'mdl_%';\""
-    )
+    ) || return 1
   fi
 
   if [[ -z "${table_count}" || "${table_count}" -lt 400 ]]; then
@@ -220,6 +220,7 @@ function run_playwright() {
     MOODLE_ADMIN_PASSWORD="${admin_password}" \
     MOODLE_ADMIN_EMAIL="${ADMIN_EMAIL}" \
     MOODLE_SITE_NAME="${SITE_HOST}" \
+    MOODLE_DISPLAY_NAME="${SITE_DOMAIN}" \
     npx playwright test "${PLAYWRIGHT_SPEC}" \
       --reporter=list \
       --workers 1 \
@@ -357,8 +358,8 @@ for case_entry in "${SUPPORTED_CASES[@]}"; do
   build_laemp_args "${image_set}" "${php_version}" "${web_server}" "${database}" "${moodle_version}" "${extra_flags}"
   laemp_args=("${BUILT_LAEMP_ARGS[@]}")
   install_cmd=$(
-    printf 'export LAEMP_FORCE_HOST_MODE=true DEBIAN_FRONTEND=noninteractive MOODLE_SITE_HOST=%q MOODLE_SITE_DOMAIN=%q MOODLE_ADMIN_USERNAME=%q MOODLE_ADMIN_EMAIL=%q; ' \
-      "${SITE_HOST}" "${SITE_DOMAIN}" "${ADMIN_USERNAME}" "${ADMIN_EMAIL}"
+    printf 'export LAEMP_FORCE_HOST_MODE=true DEBIAN_FRONTEND=noninteractive MOODLE_SITE_HOST=%q MOODLE_SITE_DOMAIN=%q MOODLE_ADMIN_USERNAME=%q MOODLE_ADMIN_EMAIL=%q MOODLE_PORT=%q LAEMP_HTTP_PORT=80 LAEMP_HTTPS_PORT=443; ' \
+      "${SITE_HOST}" "${SITE_DOMAIN}" "${ADMIN_USERNAME}" "${ADMIN_EMAIL}" ":${https_port}"
   )
   if [[ -n "${ADMIN_PASSWORD}" ]]; then
     install_cmd+=$(printf 'export MOODLE_ADMIN_PASSWORD=%q; ' "${ADMIN_PASSWORD}")

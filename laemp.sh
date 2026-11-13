@@ -257,16 +257,27 @@ download_file() {
   local temp_destination="${destination}.tmp"
   local max_attempts=3
   local attempt=1
+  local download_succeeded
+
+  if [[ "${DRY_RUN_CHANGES:-false}" == true ]]; then
+    log verbose "DRY RUN: Skipping download of ${url}"
+    return 0
+  fi
 
   while ((attempt <= max_attempts)); do
     run_command --makes-changes rm -f "${temp_destination}"
 
+    download_succeeded=false
     if tool_exists wget; then
-      if ! run_command --makes-changes wget --tries=3 --waitretry=2 --retry-connrefused -O "${temp_destination}" "${url}"; then
+      if run_command --makes-changes wget --tries=3 --waitretry=2 --retry-connrefused -O "${temp_destination}" "${url}"; then
+        download_succeeded=true
+      else
         log error "Download attempt ${attempt}/${max_attempts} failed for ${url} with wget."
       fi
     elif tool_exists curl; then
-      if ! run_command --makes-changes curl --fail --location --retry 3 --retry-delay 2 --retry-all-errors -o "${temp_destination}" "${url}"; then
+      if run_command --makes-changes curl --fail --location --retry 3 --retry-delay 2 --retry-all-errors -o "${temp_destination}" "${url}"; then
+        download_succeeded=true
+      else
         log error "Download attempt ${attempt}/${max_attempts} failed for ${url} with curl."
       fi
     else
@@ -274,15 +285,15 @@ download_file() {
       exit 1
     fi
 
-    if [[ -s "${temp_destination}" ]]; then
+    if [[ "$download_succeeded" == true && -s "${temp_destination}" ]]; then
       if [[ "${destination}" =~ \.(tgz|tar\.gz)$ ]] && ! gzip -t "${temp_destination}" >/dev/null 2>&1; then
         log error "Download attempt ${attempt}/${max_attempts} for ${url} did not produce a valid gzip archive."
       else
-        run_command --makes-changes mv "${temp_destination}" "${destination}"
+        run_command --makes-changes mv "${temp_destination}" "${destination}" || return 1
         return 0
       fi
     else
-      log error "Download attempt ${attempt}/${max_attempts} for ${url} produced an empty file."
+      log error "Download attempt ${attempt}/${max_attempts} for ${url} did not complete with a nonempty file."
     fi
 
     run_command --makes-changes rm -f "${temp_destination}"
@@ -799,7 +810,11 @@ function repository_ensure() {
         elif [[ "$repository" =~ ^deb ]]; then
           # Debian deb line format - write directly to sources.list.d
           local repo_name
-          repo_name=$(echo "$repository" | sed 's|https://||;s|http://||;s|/| |g' | awk '{print $1}' | tr '.' '-')
+          repo_name=$(printf '%s\n' "$repository" | awk '{for (i=1; i<=NF; i++) if ($i ~ /^https?:\/\//) {print $i; exit}}' | sed -E 's|^https?://||; s|/+$||; s|[^a-zA-Z0-9_-]|-|g')
+          if [[ -z "$repo_name" ]]; then
+            log error "Repository has no supported HTTP(S) URL: $repository"
+            return 1
+          fi
           local sources_file="/etc/apt/sources.list.d/${repo_name}.list"
           log verbose "Writing repository to $sources_file"
           run_command --makes-changes bash -c "echo '$repository' > $sources_file"
@@ -1252,15 +1267,19 @@ function acme_cert_request() {
   fi
 
   # Prepare SAN entries
-  local san_flag=""
+  local -a san_flags=()
   if [ -n "$san_entries" ]; then
-    san_flag="--expand --cert-name $domain"
+    local -a san_domains=()
+    local san_domain
+    IFS=',' read -r -a san_domains <<< "$san_entries"
+    san_flags=(--expand --cert-name "$domain")
+    for san_domain in "${san_domains[@]}"; do
+      san_flags+=(-d "$san_domain")
+    done
   fi
 
   # Request SSL certificate
-  #ignore ShellCheck warning for $san_flag
-  #shellcheck disable=SC2086
-  run_command --makes-changes certbot --apache -d "${domain}" ${san_flag} -m "${email}" --agree-tos --non-interactive --preferred-challenges "${challenge_type}" --server "${provider}"
+  run_command --makes-changes certbot --apache -d "${domain}" "${san_flags[@]}" -m "${email}" --agree-tos --non-interactive --preferred-challenges "${challenge_type}" --server "${provider}"
 }
 
 function apache_verify() {
@@ -2840,9 +2859,11 @@ function nginx_create_vhost() {
       https_port="${detected_https_port}"
     fi
   fi
+  local public_https_port="${moodlePort#:}"
+  public_https_port="${public_https_port:-${https_port}}"
   local https_redirect_target="https://\$host\$request_uri"
-  if [[ "${https_port}" != "443" ]]; then
-    https_redirect_target="https://\$host:${https_port}\$request_uri"
+  if [[ "${public_https_port}" != "443" ]]; then
+    https_redirect_target="https://\$host:${public_https_port}\$request_uri"
   fi
 
   local fastcgi_server_port="${https_port}"
@@ -4115,9 +4136,7 @@ function mariadb_ensure() {
     write_file /etc/mysql/mariadb.conf.d/99-moodle.cnf <<'EOF'
 [mysqld]
 # Moodle requirements
-innodb_file_format = Barracuda
 innodb_file_per_table = 1
-innodb_large_prefix = ON
 character-set-server = utf8mb4
 collation-server = utf8mb4_unicode_ci
 default-storage-engine = INNODB
@@ -4229,6 +4248,7 @@ function postgres_ensure() {
 
     # A rerun must not rotate a role's password or replace its saved credential.
     local user_exists db_exists db_password
+    local password_file="${LAEMP_STATE_DIR}/credentials/${DB_USER}-db_password"
     user_exists=$(sudo -u postgres psql -tAc "SELECT COUNT(*) FROM pg_roles WHERE rolname='${DB_USER}';") || exit 1
     db_exists=$(sudo -u postgres psql -tAc "SELECT COUNT(*) FROM pg_database WHERE datname='${DB_NAME}';") || exit 1
     db_password=$(run_credential_helper load_or_create_database_password "${LAEMP_STATE_DIR}/credentials" "$DB_USER" "$user_exists") || exit 1

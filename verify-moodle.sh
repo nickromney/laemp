@@ -13,11 +13,11 @@ PHP_CHECK_COMMAND="${PHP_CHECK_COMMAND:-}"
 DB_PING_COMMAND="${DB_PING_COMMAND:-}"
 DB_QUERY_COMMAND="${DB_QUERY_COMMAND:-}"
 DB_HOST="${DB_HOST:-}"
-DB_NAME="${DB_NAME:-moodle}"
-DB_USER="${DB_USER:-moodle}"
+DB_NAME="${DB_NAME:-}"
+DB_USER="${DB_USER:-}"
 DB_PASSWORD="${DB_PASS:-${MOODLE_DB_PASSWORD:-}}"
 DB_PASSWORD_FILE=""
-DB_PREFIX="${DB_PREFIX:-mdl_}"
+DB_PREFIX="${DB_PREFIX:-}"
 TABLE_MIN="${TABLE_MIN:-400}"
 CONTENT_MATCH="${CONTENT_MATCH:-}"
 USE_INSECURE=false
@@ -207,25 +207,23 @@ function resolve_php_runtime() {
 
 function resolve_url() {
   if [[ -n "${URL}" ]]; then
-    printf '%s\n' "${URL}"
     return 0
   fi
 
   if [[ -n "${CONFIG_PATH}" && -f "${CONFIG_PATH}" ]]; then
     URL="$(config_value "wwwroot" "${CONFIG_PATH}" || true)"
     if [[ -n "${URL}" ]]; then
-      printf '%s\n' "${URL}"
       return 0
     fi
   fi
 
   if curl -ksS -o /dev/null -I https://localhost >/dev/null 2>&1; then
     USE_INSECURE=true
-    printf '%s\n' "https://localhost"
+    URL="https://localhost"
     return 0
   fi
 
-  printf '%s\n' "http://localhost"
+  URL="http://localhost"
 }
 
 function maybe_fill_database_settings_from_config() {
@@ -243,6 +241,7 @@ function maybe_fill_database_settings_from_config() {
   [[ -n "${DB_NAME}" ]] || DB_NAME="$(config_value "dbname" "${CONFIG_PATH}" || true)"
   [[ -n "${DB_USER}" ]] || DB_USER="$(config_value "dbuser" "${CONFIG_PATH}" || true)"
   [[ -n "${DB_PASSWORD}" ]] || DB_PASSWORD="$(config_value "dbpass" "${CONFIG_PATH}" || true)"
+  [[ -n "${DB_PREFIX}" ]] || DB_PREFIX="$(config_value "prefix" "${CONFIG_PATH}" || true)"
 }
 
 function require_integer() {
@@ -532,8 +531,11 @@ require_integer "${TABLE_MIN}"
 read_password_file
 CONFIG_PATH="$(detect_config_path || true)"
 maybe_fill_database_settings_from_config
+DB_NAME="${DB_NAME:-moodle}"
+DB_USER="${DB_USER:-moodle}"
+DB_PREFIX="${DB_PREFIX:-mdl_}"
 DATABASE="$(normalize_database_type "${DATABASE}")"
-URL="$(resolve_url)"
+resolve_url
 BACKEND="$(resolve_backend)"
 PHP_RUNTIME="$(resolve_php_runtime)"
 

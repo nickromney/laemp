@@ -24,6 +24,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env.test') });
 
 const MOODLE_URL = process.env.MOODLE_URL || 'https://moodle.docker.test.127.0.0.1.sslip.io';
 const MOODLE_HTTP_URL = process.env.MOODLE_HTTP_URL || 'http://moodle.docker.test.127.0.0.1.sslip.io';
+const SITE_DISPLAY_NAME = process.env.MOODLE_DISPLAY_NAME || 'moodle.docker.test';
 const ADMIN_USERNAME = process.env.MOODLE_ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.MOODLE_ADMIN_PASSWORD;
 const ADMIN_EMAIL = process.env.MOODLE_ADMIN_EMAIL || 'demo@moodle.docker.test';
@@ -88,7 +89,7 @@ test.describe('Moodle Installation - Homepage', () => {
     const response = await page.goto(MOODLE_URL);
 
     expect(response?.status()).toBe(200);
-    expect(await page.title()).toContain('Moodle');
+    expect(await page.title()).toContain(SITE_DISPLAY_NAME);
   });
 
   test('should not display PHP errors on homepage', async ({ page }) => {
@@ -128,7 +129,7 @@ test.describe('Moodle Installation - Login Page', () => {
     await page.goto(`${MOODLE_URL}/login/index.php`);
 
     expect(page.url()).toContain('/login');
-    expect(await page.title()).toContain('Moodle');
+    expect(await page.title()).toContain(SITE_DISPLAY_NAME);
   });
 
   test('should display login form', async ({ page }) => {
@@ -207,7 +208,9 @@ test.describe('Moodle Installation - Admin Dashboard', () => {
     // Should see admin page (not access denied)
     expect(page.url()).toContain('/admin');
 
-    const bodyText = await page.textContent('body');
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible();
+    const bodyText = await main.innerText();
     expect(bodyText).not.toContain('Access denied');
     expect(bodyText).not.toContain('You do not have permission');
   });

@@ -8,13 +8,13 @@ setup() {
 
   cat > "${TEST_TMPDIR}/config.php" <<EOF
 <?php
-$CFG = new stdClass();
-$CFG->dbtype = 'mariadb';
-$CFG->dbhost = 'db.internal';
-$CFG->dbname = 'moodle';
-$CFG->dbuser = 'moodle';
-$CFG->dbpass = 'moodlepass';
-$CFG->wwwroot = 'http://127.0.0.1:${TEST_PORT}';
+\$CFG = new stdClass();
+\$CFG->dbtype = 'mariadb';
+\$CFG->dbhost = 'db.internal';
+\$CFG->dbname = 'moodle';
+\$CFG->dbuser = 'moodle';
+\$CFG->dbpass = 'moodlepass';
+\$CFG->wwwroot = 'http://127.0.0.1:${TEST_PORT}';
 EOF
   printf 'Log in to the site\n' > "${TEST_TMPDIR}/index.html"
   mkdir -p \
@@ -79,4 +79,49 @@ teardown() {
   [[ "${output}" == *"JavaScript asset returned 200"* ]]
   [[ "${output}" == *"RequireJS asset returned 200"* ]]
   [[ "${output}" == *"Moodle database contains 489 tables"* ]]
+}
+
+@test "verifier uses database settings from config" {
+  sed -i.bak "s/'moodle';/'customdb';/" "${TEST_TMPDIR}/config.php"
+  printf "\$CFG->prefix = 'custom_';\n" >> "${TEST_TMPDIR}/config.php"
+  mkdir "${TEST_TMPDIR}/bin"
+  cat > "${TEST_TMPDIR}/bin/curl" <<'SCRIPT'
+#!/bin/bash
+printf '200'
+SCRIPT
+  cat > "${TEST_TMPDIR}/bin/mysqladmin" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" > "$TEST_TMPDIR/ping-args"
+SCRIPT
+  cat > "${TEST_TMPDIR}/bin/mysql" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" > "$TEST_TMPDIR/query-args"
+printf '489\n'
+SCRIPT
+  chmod +x "${TEST_TMPDIR}/bin/"*
+  printf 'export PATH="%s:$PATH"\n' "${TEST_TMPDIR}/bin" > "${TEST_TMPDIR}/bash-env"
+  run env PATH="${TEST_TMPDIR}/bin:${PATH}" BASH_ENV="${TEST_TMPDIR}/bash-env" "${VERIFY_SCRIPT}" --backend none --skip-web-check --skip-php-check --skip-asset-check --config-path "${TEST_TMPDIR}/config.php"
+  [ "$status" -eq 0 ]
+  [[ "$(cat "${TEST_TMPDIR}/ping-args")" == *"-u customdb"* ]]
+  [[ "$(cat "${TEST_TMPDIR}/query-args")" == *"table_schema = 'customdb'"* ]]
+  [[ "$(cat "${TEST_TMPDIR}/query-args")" == *"table_name LIKE 'custom_%'"* ]]
+  run env PATH="${TEST_TMPDIR}/bin:${PATH}" BASH_ENV="${TEST_TMPDIR}/bash-env" DB_NAME=override_db DB_USER=override_user DB_PREFIX=override_ "${VERIFY_SCRIPT}" --backend none --skip-web-check --skip-php-check --skip-asset-check --config-path "${TEST_TMPDIR}/config.php"
+  [ "$status" -eq 0 ]
+  [[ "$(cat "${TEST_TMPDIR}/ping-args")" == *"-u override_user"* ]]
+  [[ "$(cat "${TEST_TMPDIR}/query-args")" == *"table_schema = 'override_db'"* ]]
+  [[ "$(cat "${TEST_TMPDIR}/query-args")" == *"table_name LIKE 'override_%'"* ]]
+}
+
+@test "HTTPS localhost fallback retains insecure option" {
+  mkdir "${TEST_TMPDIR}/bin"
+  cat > "${TEST_TMPDIR}/bin/curl" <<'SCRIPT'
+#!/bin/bash
+if [[ "$*" == *"-I https://localhost"* ]]; then exit 0; fi
+printf '%s\n' "$*" > "$TEST_TMPDIR/curl-args"
+printf '200'
+SCRIPT
+  chmod +x "${TEST_TMPDIR}/bin/curl"
+  run env PATH="${TEST_TMPDIR}/bin:${PATH}" "${VERIFY_SCRIPT}" --config-path "${TEST_TMPDIR}/missing" --skip-config-check --skip-web-check --skip-php-check --skip-db-check --skip-asset-check
+  [ "$status" -eq 0 ]
+  [[ "$(cat "${TEST_TMPDIR}/curl-args")" == *"-k https://localhost"* ]]
 }
