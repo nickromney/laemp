@@ -7,6 +7,7 @@ SLICER_HOSTGROUP="${SLICER_HOSTGROUP:-sbox}"
 SLICER_VM_UID="${SLICER_VM_UID:-1000}"
 
 function slicer_require() {
+  slicer_require_tools jq
   if ! command -v slicer >/dev/null 2>&1; then
     echo "Error: slicer CLI is not installed or not in PATH." >&2
     exit 1
@@ -90,7 +91,13 @@ function slicer_restart_daemon() {
 
 function slicer_vm_ip() {
   local vm_name="$1"
-  slicer vm list --url "${SLICER_URL}" | awk -v vm="${vm_name}" '$1==vm {print $2; exit}'
+  local ip
+  ip=$(slicer vm list --json --url "${SLICER_URL}" |
+    jq -er --arg vm "${vm_name}" '.[] | select(.hostname == $vm) | .ip | strings | select(test("^[0-9]+(\\.[0-9]+){3}$"))') || {
+    echo "Error: could not find an IPv4 address for Slicer VM ${vm_name}." >&2
+    return 1
+  }
+  printf '%s\n' "${ip}"
 }
 
 function slicer_vm_cp() {
@@ -120,7 +127,7 @@ function slicer_vm_exec_root_retry() {
   local vm_name="$1"
   shift
   for _ in 1 2 3 4 5; do
-    if slicer vm exec "${vm_name}" --url "${SLICER_URL}" "$@"; then
+    if slicer vm exec "${vm_name}" --url "${SLICER_URL}" --uid 0 "$@"; then
       return 0
     fi
     sleep 2
@@ -132,7 +139,7 @@ function slicer_vm_exec_root_retry() {
 function slicer_vm_exec_root() {
   local vm_name="$1"
   shift
-  slicer vm exec "${vm_name}" --url "${SLICER_URL}" "$@"
+  slicer vm exec "${vm_name}" --url "${SLICER_URL}" --uid 0 "$@"
 }
 
 function slicer_latest_vm() {

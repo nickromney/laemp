@@ -6,7 +6,7 @@ CONTAINER_RUNTIME ?= docker
 COMPOSE_CMD ?= docker compose
 BATS ?= bats
 
-SMOKE_BATS := tests/bats/test_docker_verification.bats tests/bats/test_installer_helpers.bats tests/bats/test_certificates.bats tests/bats/test_smoke.bats tests/bats/test_docker_ports.bats tests/bats/test_tls_preflight.bats
+SMOKE_BATS := tests/bats/test_slicer_vm.bats tests/bats/test_docker_verification.bats tests/bats/test_installer_helpers.bats tests/bats/test_certificates.bats tests/bats/test_smoke.bats tests/bats/test_docker_ports.bats tests/bats/test_tls_preflight.bats
 CLI_BATS := tests/bats/test_laemp.bats tests/bats/test_php_security.bats
 INTEGRATION_BATS := tests/bats/test_integration.bats
 VERIFY_BATS := tests/bats/test_verify_moodle.bats

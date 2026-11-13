@@ -113,13 +113,7 @@ function read_admin_credentials_from_vm() {
   local vm_name="$1"
   local credentials_file_q
   printf -v credentials_file_q '%q' "${ADMIN_CREDENTIALS_FILE}"
-  slicer_vm_exec_root_retry "${vm_name}" -- "test -f ${credentials_file_q}"
-  slicer_vm_exec_root_retry "${vm_name}" -- "set -a; . ${credentials_file_q}; set +a; printf '%s\t%s\n' \"\${MOODLE_ADMIN_USERNAME:-}\" \"\${MOODLE_ADMIN_PASSWORD:-}\""
-}
-
-function extract_admin_password() {
-  local install_log="$1"
-  awk -F': ' '/Admin password:/ {print $NF; exit}' "${install_log}"
+  slicer_vm_exec_root_retry "${vm_name}" -- "set -e; . ${credentials_file_q}; printf '%s\\t%s\\n' \"\${MOODLE_ADMIN_USERNAME:?}\" \"\${MOODLE_ADMIN_PASSWORD:?}\""
 }
 
 function verify_stack_in_vm() {
@@ -134,16 +128,16 @@ function verify_stack_in_vm() {
     web_service="apache2"
   fi
 
-  slicer_vm_exec_retry "${vm_name}" -- "curl -ksSfI https://${site_host} | head -n 1" > "${combo_dir}/http_head.txt"
-  slicer_vm_exec_retry "${vm_name}" -- "systemctl is-active ${web_service}" > "${combo_dir}/web_service.txt"
-  slicer_vm_exec_retry "${vm_name}" -- "systemctl is-active cron" > "${combo_dir}/cron_service.txt"
+  slicer_vm_exec_retry "${vm_name}" -- "curl -ksSfI https://${site_host}" > "${combo_dir}/http_head.txt" || return 1
+  slicer_vm_exec_retry "${vm_name}" -- "systemctl is-active ${web_service}" > "${combo_dir}/web_service.txt" || return 1
+  slicer_vm_exec_retry "${vm_name}" -- "systemctl is-active cron" > "${combo_dir}/cron_service.txt" || return 1
 
   if [[ "${DB_TYPE}" == "pgsql" ]]; then
-    slicer_vm_exec_retry "${vm_name}" -- "systemctl is-active postgresql" > "${combo_dir}/db_service.txt"
-    table_count=$(slicer_vm_exec_retry "${vm_name}" -- "sudo -u postgres psql -d moodle -Atc \"select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'mdl_%';\"")
+    slicer_vm_exec_retry "${vm_name}" -- "systemctl is-active postgresql" > "${combo_dir}/db_service.txt" || return 1
+    table_count=$(slicer_vm_exec_retry "${vm_name}" -- "sudo -u postgres psql -d moodle -Atc \"select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'mdl_%';\"") || return 1
   else
-    slicer_vm_exec_retry "${vm_name}" -- "systemctl is-active mariadb" > "${combo_dir}/db_service.txt"
-    table_count=$(slicer_vm_exec_retry "${vm_name}" -- "sudo mysql -Nse \"select count(*) from information_schema.tables where table_schema = 'moodle' and table_name like 'mdl_%';\"")
+    slicer_vm_exec_retry "${vm_name}" -- "systemctl is-active mariadb" > "${combo_dir}/db_service.txt" || return 1
+    table_count=$(slicer_vm_exec_retry "${vm_name}" -- "sudo mysql -Nse \"select count(*) from information_schema.tables where table_schema = 'moodle' and table_name like 'mdl_%';\"") || return 1
   fi
 
   if [[ -z "${table_count}" || "${table_count}" -lt 400 ]]; then
@@ -325,15 +319,10 @@ for combo in "${SUPPORTED_COMBOS[@]}"; do
     --env "MOODLE_ADMIN_PASSWORD=${ADMIN_PASSWORD}" \
     --env "MOODLE_ADMIN_EMAIL=${ADMIN_EMAIL}" \
     -- "$(printf '%q ' "${install_cmd[@]}")" 2>&1 | tee "${install_log}"; then
-    credentials_line="$(read_admin_credentials_from_vm "${vm_name}" 2>/dev/null || true)"
-    if [[ -n "${credentials_line}" ]]; then
-      IFS=$'\t' read -r admin_username admin_password <<<"${credentials_line}"
-    fi
-    if [[ -z "${admin_password}" ]]; then
-      admin_password="$(extract_admin_password "${install_log}")"
-    fi
-    if [[ -z "${admin_password}" ]]; then
-      echo "Error: could not extract admin password from ${install_log}." >&2
+    if ! credentials_line="$(read_admin_credentials_from_vm "${vm_name}" 2>/dev/null)" ||
+      ! IFS=$'\t' read -r admin_username admin_password <<<"${credentials_line}" ||
+      [[ -z "${admin_username}" || -z "${admin_password}" ]]; then
+      echo "Error: could not read the private Moodle admin credential handoff from ${vm_name}." >&2
       failures=$((failures + 1))
       printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "${label}" "FAIL" "${vm_name}" "${vm_ip}" "https://${site_host}" "${php_version}" "${web_server}" "${moodle_version}" "${DB_TYPE}" "${CERT_MODE}" "${ADMIN_EMAIL}" "" "${combo_dir}" >> "${RESULTS_TSV}"
