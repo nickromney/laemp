@@ -156,6 +156,8 @@ function verify_case() {
   local http_port="$4"
   local https_port="$5"
   local combo_dir="$6"
+  local php_version="$7"
+  local extra_flags="${8:-}"
   local table_count=""
   local http_url
   local https_url
@@ -172,10 +174,10 @@ function verify_case() {
   grep -qi "^location: ${https_url}/" "${combo_dir}/http_redirect_external.txt" || return 1
 
   if [[ "${web_server}" == "nginx" ]]; then
-    docker_exec_root_shell "${container_name}" "pgrep -f '/usr/sbin/nginx' >/dev/null" || return 1
-    docker_exec_root_shell "${container_name}" "pidof php-fpm8.4 >/dev/null 2>&1 || pidof php-fpm >/dev/null 2>&1" || return 1
+    docker_exec_root_shell "${container_name}" "pidof nginx >/dev/null" || return 1
+    docker_exec_root_shell "${container_name}" "pidof php-fpm${php_version} >/dev/null 2>&1" || return 1
   else
-    docker_exec_root_shell "${container_name}" "pgrep -f 'apache2' >/dev/null" || return 1
+    docker_exec_root_shell "${container_name}" "pidof apache2 >/dev/null" || return 1
   fi
 
   if [[ "${database}" == "pgsql" ]]; then
@@ -196,6 +198,18 @@ function verify_case() {
     echo "Error: Moodle table count check failed (${table_count:-missing})." >&2
     return 1
   fi
+
+  case "${extra_flags}" in
+    -M)
+      docker_exec_root_shell "${container_name}" "pidof memcached >/dev/null && php${php_version} --ri memcached >/dev/null" || return 1
+      ;;
+    -r)
+      docker_exec_root_shell "${container_name}" "curl -fsS --retry 5 --retry-connrefused http://127.0.0.1:9090/-/ready" >"${combo_dir}/prometheus_ready.txt" || return 1
+      docker_exec_root_shell "${container_name}" "curl -fsS http://127.0.0.1:9100/metrics | grep '^node_exporter_build_info{'" >"${combo_dir}/node_exporter.txt" || return 1
+      docker_exec_root_shell "${container_name}" "curl -fsS http://127.0.0.1:9113/metrics | grep '^nginx_up 1$'" >"${combo_dir}/nginx_exporter.txt" || return 1
+      docker_exec_root_shell "${container_name}" "curl -fsS http://127.0.0.1:9253/metrics | grep -E '^phpfpm_up(\\{[^}]*\\})? 1$'" >"${combo_dir}/phpfpm_exporter.txt" || return 1
+      ;;
+  esac
 
   printf '%s\n' "${table_count}" >"${combo_dir}/table_count.txt"
 }
@@ -352,8 +366,12 @@ for case_entry in "${SUPPORTED_CASES[@]}"; do
   admin_password="${ADMIN_PASSWORD}"
 
   docker_build_image "${PROJECT_ROOT}" "${distro}" "${image_set}" "${REBUILD_IMAGES}"
-  docker_run_case_container "${container_name}" "${image}" "${DOCKER_BIND_HOST}" "${http_port}" "${https_port}"
+  docker_run_case_container "${container_name}" "${image}" "${DOCKER_BIND_HOST}" "${http_port}" "${https_port}" "${extra_flags}"
   active_container="${container_name}"
+
+  if [[ "${extra_flags}" == "-r" ]]; then
+    docker_exec_root_shell "${container_name}" 'timeout 60 bash -c "until systemctl is-system-running --wait; do sleep 1; done"'
+  fi
 
   build_laemp_args "${image_set}" "${php_version}" "${web_server}" "${database}" "${moodle_version}" "${extra_flags}"
   laemp_args=("${BUILT_LAEMP_ARGS[@]}")
@@ -377,7 +395,7 @@ for case_entry in "${SUPPORTED_CASES[@]}"; do
     if [[ -z "${admin_password}" ]]; then
       admin_password=$(extract_admin_password "${install_log}" || true)
     fi
-    if verify_case "${container_name}" "${web_server}" "${database}" "${http_port}" "${https_port}" "${combo_dir}"; then
+    if verify_case "${container_name}" "${web_server}" "${database}" "${http_port}" "${https_port}" "${combo_dir}" "${php_version}" "${extra_flags}"; then
       table_count=$(cat "${combo_dir}/table_count.txt")
       if [[ "${RUN_PLAYWRIGHT}" == "true" && -n "${admin_password}" ]]; then
         if run_playwright "${combo_dir}" "${http_port}" "${https_port}" "${admin_username}" "${admin_password}"; then

@@ -28,7 +28,7 @@ teardown() {
 
 @test "Docker verification rejects failed TLS even when database tables exist" {
   tls_preflight_check_url() { return 1; }
-  if verify_case fixture nginx mariadb 18180 18543 "$TEST_TMPDIR"; then
+  if verify_case fixture nginx mariadb 18180 18543 "$TEST_TMPDIR" 8.4; then
     echo 'verification accepted failed TLS' >&2
     return 1
   fi
@@ -36,13 +36,24 @@ teardown() {
 
 @test "Docker verification rejects redirect to the wrong published port" {
   curl() { printf 'HTTP/1.1 301 Moved Permanently\nLocation: https://fixture.test/\n'; }
-  if verify_case fixture nginx mariadb 18180 18543 "$TEST_TMPDIR"; then
+  if verify_case fixture nginx mariadb 18180 18543 "$TEST_TMPDIR" 8.4; then
     echo 'verification accepted wrong redirect' >&2
     return 1
   fi
 }
 
 @test "Docker verification accepts successful service HTTP TLS and database probes" {
-  verify_case fixture nginx mariadb 18180 18543 "$TEST_TMPDIR"
+  verify_case fixture nginx mariadb 18180 18543 "$TEST_TMPDIR" 8.4
   [ "$(cat "$TEST_TMPDIR/table_count.txt")" = 489 ]
+}
+
+@test "Docker verification checks the PHP-FPM process for the case version" {
+  docker_exec_root_shell() {
+    case "$2" in
+      *pidof\ php-fpm*) [[ "$2" == *'pidof php-fpm8.3 '* ]] ;;
+      *'select count('* ) printf '489\n' ;;
+      *curl*) printf 'HTTP/1.1 200 OK\n' ;;
+    esac
+  }
+  verify_case fixture nginx mariadb 18180 18543 "$TEST_TMPDIR" 8.3
 }

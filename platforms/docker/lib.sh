@@ -236,32 +236,27 @@ function docker_run_case_container() {
   local http_port="$4"
   local https_port="$5"
 
-  docker_cleanup_container "${container_name}"
+  local extra_flags="${6:-}"
+  local -a platform=()
+  local -a command=(sleep infinity)
 
   if [[ -n "${DOCKER_PLATFORM}" ]]; then
-    "${DOCKER_CMD}" run -d \
-      --platform "${DOCKER_PLATFORM}" \
-      --name "${container_name}" \
-      --privileged \
-      --tmpfs /tmp \
-      --tmpfs /run \
-      --tmpfs /run/lock \
-      -p "${bind_host}:${http_port}:80" \
-      -p "${bind_host}:${https_port}:443" \
-      "${image}" \
-      sleep infinity >/dev/null
-  else
-    "${DOCKER_CMD}" run -d \
-      --name "${container_name}" \
-      --privileged \
-      --tmpfs /tmp \
-      --tmpfs /run \
-      --tmpfs /run/lock \
-      -p "${bind_host}:${http_port}:80" \
-      -p "${bind_host}:${https_port}:443" \
-      "${image}" \
-      sleep infinity >/dev/null
+    platform=(--platform "${DOCKER_PLATFORM}")
   fi
+  if [[ "${extra_flags}" == "-r" ]]; then
+    command=(/lib/systemd/systemd systemd.mask=laemp-installer.service)
+  fi
+
+  docker_cleanup_container "${container_name}"
+  "${DOCKER_CMD}" run -d "${platform[@]}" \
+    --name "${container_name}" \
+    --privileged \
+    --tmpfs /tmp \
+    --tmpfs /run \
+    --tmpfs /run/lock \
+    -p "${bind_host}:${http_port}:80" \
+    -p "${bind_host}:${https_port}:443" \
+    "${image}" "${command[@]}" >/dev/null
 }
 
 function docker_exec_root_shell() {

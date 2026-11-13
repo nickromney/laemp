@@ -87,3 +87,18 @@ teardown() {
   grep -Fq 'return 301 https://$host:18543$request_uri;' "$TEST_TMPDIR/vhost"
   grep -Fq 'fastcgi_param SERVER_PORT 18543;' "$TEST_TMPDIR/vhost"
 }
+
+@test "Apache redirect includes the published HTTPS port without changing its listener" {
+  apache_verify() { :; }
+  write_file() { cat > "$TEST_TMPDIR/vhost"; }
+  run_command() { :; }
+  moodlePort=:18543
+  declare -A fixture_config=(
+    [site_name]=fixture.test [document_root]=/var/www/fixture
+    [admin_email]=admin@fixture.test [ssl_cert_file]=/tmp/cert [ssl_key_file]=/tmp/key
+    [include_file]=''
+  )
+  apache_create_vhost fixture_config
+  grep -Fxq '<VirtualHost *:443>' "$TEST_TMPDIR/vhost"
+  grep -Fq 'Redirect permanent / https://fixture.test:18543/' "$TEST_TMPDIR/vhost"
+}

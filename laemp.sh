@@ -1449,7 +1449,7 @@ function apache_create_vhost() {
   local vhost_template="
 <VirtualHost *:80>
     ServerName {{site_name}}
-    Redirect permanent / https://{{site_name}}/
+    Redirect permanent / https://{{site_name}}{{public_port}}/
 </VirtualHost>
 
 <VirtualHost *:443>
@@ -1487,6 +1487,7 @@ function apache_create_vhost() {
   vhost_config=$(
     apply_template "$vhost_template" \
       "site_name=${site_name}" \
+      "public_port=${moodlePort:-}" \
       "document_root=${document_root}" \
       "admin_email=${admin_email}" \
       "ssl_cert_file=${ssl_cert_file}" \
@@ -3996,7 +3997,7 @@ EOF
   fi
 
   # Create systemd service
-  write_file /etc/systemd/system/php-fpm_exporter.service <<'EOF'
+  write_file /etc/systemd/system/php-fpm_exporter.service <<EOF
 [Unit]
 Description=PHP-FPM Prometheus Exporter
 Wants=network-online.target
@@ -4006,6 +4007,7 @@ After=network-online.target
 Type=simple
 User=prometheus
 Group=prometheus
+SupplementaryGroups=www-data
 Environment="PHP_FPM_SCRAPE_URI=${phpfpm_scrape_uri}"
 ExecStart=/usr/local/bin/php-fpm_exporter server
 
