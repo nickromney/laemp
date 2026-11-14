@@ -122,7 +122,7 @@ function echo_usage() {
   log info "                            Use 502 for the weekly 5.2 build or 5030 for tagged 5.3.0"
   log info "  -M, --memcached [MODE]    Ensure Memcached is installed"
   log info "                            Accepts local or network (default). Both install the local service"
-  log info "  -n, --nop                 Dry run (skip provisioning changes)"
+  log info "  -n, --nop                 Validate the requested stack without provisioning; use -v to show the plan"
   log info "  -p, --php [VERSION]       Check existing PHP or install the requested version if missing"
   log info "                            Requested version defaults to ${DEFAULT_PHP_VERSION_MAJOR_MINOR}"
   log info "  -P, --php-alongside [VERSION]"
@@ -4333,6 +4333,11 @@ function main() {
     fi
   fi
 
+  if $DRY_RUN_CHANGES; then
+    log info "Dry run complete. No provisioning changes made."
+    return 0
+  fi
+
   log verbose "checking ACME_CERT"
   if $ACME_CERT; then
     log verbose "Creating ACME certificate..."
@@ -4737,7 +4742,11 @@ if [[ "${LOG_LEVEL}" == "verbose" ]]; then
   chosen_options=""
 
   if $CI_MODE; then chosen_options+="-c: CI mode, "; fi
+  if $ACME_CERT; then chosen_options+="-a: Request an ACME certificate, "; fi
+  if $SELF_SIGNED_CERT; then chosen_options+="-S: Create a self-signed certificate, "; fi
+  if $MKCERT_CERT; then chosen_options+="--mkcert: Use a locally trusted certificate, "; fi
   if [[ -n "${DB_TYPE}" ]]; then chosen_options+="-d: Database type set to ${DB_TYPE}, "; fi
+  if $SKIP_DB_SERVER; then chosen_options+="--skip-db-server: Use an existing database server, "; fi
   if $FPM_ENSURE; then chosen_options+="-f: Ensure FPM for web servers, "; fi
   if $MOODLE_ENSURE; then chosen_options+="-m: Ensure Moodle version $MOODLE_VERSION, "; fi
   if $MEMCACHED_ENSURE; then

@@ -2,8 +2,8 @@
 # Fast smoke tests for laemp.sh
 # These tests should run in < 1 second each and catch obvious problems
 #
-# NOTE: These are static analysis tests. The script requires Ubuntu/Debian
-# to run, so we focus on syntax checks, code quality, and structure validation.
+# These mostly check syntax and structure because the installer requires
+# Ubuntu or Debian. The documented dry run also has a clean-host fixture.
 # For functional tests, see tests/bats/test_laemp.bats (run in containers).
 
 setup() {
@@ -124,7 +124,35 @@ setup() {
   fi
   run "$SCRIPT" -n -v
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "Options chosen:" ]]
+  [[ "$output" =~ "Chosen options:" ]]
+}
+
+@test "documented dry run succeeds before PHP, nginx, or MariaDB is installed" {
+  local fixture="$BATS_TEST_TMPDIR/clean-debian"
+  mkdir -p "$fixture/bin"
+  cp "$SCRIPT" "$fixture/laemp.sh"
+  cat >"$fixture/bin/lsb_release" <<'EOF'
+#!/bin/sh
+case "$1" in
+  -is) echo Debian ;;
+  -sc) echo trixie ;;
+esac
+EOF
+  chmod +x "$fixture/bin/lsb_release"
+  # Provide the base tools by name without exposing installed stack binaries.
+  local tool
+  for tool in bash awk basename dirname date mkdir touch tar curl grep cut; do
+    ln -s "$(command -v "$tool")" "$fixture/bin/$tool"
+  done
+  printf '#!/bin/sh\nexit 99\n' >"$fixture/bin/apt"
+  chmod +x "$fixture/bin/apt"
+
+  cd "$fixture"
+  run env PATH="$fixture/bin" ./laemp.sh -n -v -p 8.4 -w nginx -d mariadb -m 5024 -S
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Ensure Moodle version 5024"* ]]
+  [[ "$output" == *"Create a self-signed certificate"* ]]
+  [[ "$output" == *"Dry run complete"* ]]
 }
 
 # ============================================================================

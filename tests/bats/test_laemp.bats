@@ -269,7 +269,7 @@ setup() {
   run ./laemp.sh -S -w nginx -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
-  # Self-signed flag doesn't appear in verbose output, but should not error
+  [[ "$output" =~ "Create a self-signed certificate" ]]
 }
 
 @test "self-signed certificate flag (--self-signed) in dry-run verbose mode" {
