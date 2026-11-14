@@ -7,10 +7,10 @@ help:
 	@echo "lima platform"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make baseline        # proven Lima baseline"
-	@echo "  make matrix          # supported Lima matrix"
-	@echo "  make status          # show laemp-managed Lima instances"
-	@echo "  make reset           # delete laemp-managed Lima instances"
+	@echo "  make baseline        # Install weekly Moodle 5.2 in a fresh VM (PHP 8.4, nginx, MariaDB) and run Playwright smoke checks"
+	@echo "  make matrix          # Run all supported Lima cases in fresh VMs with Playwright smoke checks"
+	@echo "  make status          # List Lima instances whose names start with LIMA_INSTANCE_PREFIX (default: laemp-moodle)"
+	@echo "  make reset           # Force-delete the instance named LIMA_INSTANCE_PREFIX and those starting with that prefix plus a hyphen"
 
 .PHONY: baseline
 baseline:

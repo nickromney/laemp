@@ -9,10 +9,10 @@ help:
 	@echo "docker platform"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make baseline        # proven Debian/nginx/MariaDB/Moodle 5.2.4/stable502 runner"
-	@echo "  make matrix          # supported Docker matrix"
-	@echo "  make compose-up      # fast Debian + PostgreSQL compose path"
-	@echo "  make compose-clean   # recreate the fast compose path"
+	@echo "  make baseline        # Install and verify pinned Moodle 5.2.4 on stock Debian (PHP 8.4, nginx, MariaDB)"
+	@echo "  make matrix          # Install and verify each supported Docker configuration"
+	@echo "  make compose-up      # Start Debian Moodle and PostgreSQL in Compose, then check HTTPS and certificate expiry"
+	@echo "  make compose-clean   # Stop the Compose project and recreate Debian Moodle and PostgreSQL using existing volumes"
 
 .PHONY: baseline
 baseline:

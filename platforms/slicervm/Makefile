@@ -5,8 +5,8 @@ help:
 	@echo "slicervm platform"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make baseline        # proven Slicer baseline"
-	@echo "  make matrix          # supported Slicer matrix"
+	@echo "  make baseline        # Install weekly Moodle 5.2 in a fresh VM (PHP 8.4, nginx, MariaDB) and run Playwright smoke checks"
+	@echo "  make matrix          # Run all supported Slicer cases in fresh VMs with Playwright smoke checks"
 
 .PHONY: baseline
 baseline:
