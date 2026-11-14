@@ -14,11 +14,15 @@ VERIFY_BATS := tests/bats/test_verify_moodle.bats
 .DEFAULT_GOAL := help
 
 .PHONY: help
+# Describe the project-specific checks behind the shared verify-kit targets.
 help: ## Show this help message
 	@echo "$(GREEN)laemp$(NC)"
 	@echo ""
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-24s$(NC) %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "} \
+		$$1 == "verify" {$$2 = "Dry-run the installer and verify an existing Moodle site on Ubuntu or Debian"} \
+		$$1 == "verify-test" {$$2 = "Lint and run the verification skill tests (requires Bash 3.2 on macOS)"} \
+		{printf "  $(GREEN)%-24s$(NC) %s\n", $$1, $$2}'
 
 .PHONY: lint
 lint: ## Run shellcheck on shell entry points
@@ -33,18 +37,18 @@ lint: ## Run shellcheck on shell entry points
 		tests/slicer/*.sh
 
 .PHONY: test
-test: test-security test-smoke-bats test-cli-bats test-verify-bats ## Run fast repo-local test checks
+test: test-security test-smoke-bats test-cli-bats test-verify-bats ## Run installer security, smoke, CLI, and Moodle verifier tests
 
 .PHONY: test-smoke-bats
 test-smoke-bats: ## Run fast BATS smoke tests
 	@$(BATS) $(SMOKE_BATS)
 
 .PHONY: test-cli-bats
-test-cli-bats: ## Run BATS CLI and dry-run parsing tests
+test-cli-bats: ## Run BATS CLI, dry-run, and PHP security checks
 	@$(BATS) $(CLI_BATS)
 
 .PHONY: test-integration-bats
-test-integration-bats: ## Run full-install container BATS integration tests
+test-integration-bats: ## Run BATS installer integration tests using prebuilt container images
 	@$(BATS) $(INTEGRATION_BATS)
 
 .PHONY: test-verify-bats
@@ -56,16 +60,16 @@ test-playwright: ## Run Playwright tests against a running target
 	@npm test
 
 .PHONY: playwright-install
-playwright-install: ## Install Playwright browser dependencies
+playwright-install: ## Install npm dependencies and Playwright Chromium
 	@npm install
 	@npx playwright install chromium
 
 .PHONY: precommit
-precommit: lint ## Run pre-commit hooks on all files
+precommit: lint ## Run ShellCheck, then run the pre-commit framework on all files
 	@pre-commit run --all-files
 
 .PHONY: precommit-install
-precommit-install: ## Install pre-commit hooks
+precommit-install: ## Install the pre-commit framework's Git hook
 	@pre-commit install
 
 .PHONY: hooks
@@ -79,11 +83,11 @@ hooks: ## Install lefthook-managed Git hooks
 	@echo "Skip one git command with: LEFTHOOK=0 git <command> or --no-verify"
 
 .PHONY: security-setup
-security-setup: ## Install local security tooling on macOS
+security-setup: ## Install macOS security tools with Homebrew and set up the pre-commit hook
 	@./scripts/setup-security.sh
 
 .PHONY: gitleaks
-gitleaks: ## Run gitleaks secret scanner
+gitleaks: ## Scan Git history for secrets with Gitleaks
 	@gitleaks detect --verbose
 
 .PHONY: gitleaks-protect
@@ -108,7 +112,7 @@ trivy-verify: ## Verify the pinned Trivy image was signed by Trivy's release wor
 	@echo "$(GREEN)Verified $(TRIVY_IMAGE)$(NC)"
 
 .PHONY: trivy-scan
-trivy-scan: trivy-verify ## Scan locally built laemp test images with the pinned, verified Trivy (fails on fixable HIGH/CRITICAL)
+trivy-scan: trivy-verify ## Verify Trivy and scan local test images (fails on fixable HIGH/CRITICAL findings by default)
 	@scan_dir="$$(mktemp -d)"; trap 'rm -rf "$$scan_dir"' EXIT; scanned=0; \
 	for image in $(TRIVY_IMAGES); do \
 		if ! $(CONTAINER_RUNTIME) image inspect "$$image" >/dev/null 2>&1; then \
@@ -129,7 +133,7 @@ trivy-scan: trivy-verify ## Scan locally built laemp test images with the pinned
 	echo "$(GREEN)Scanned $$scanned image(s): no $(TRIVY_SEVERITY) vulnerabilities$(NC)"
 
 .PHONY: debian
-debian: ## Ensure the Debian compose container is running
+debian: ## Start Debian Moodle and PostgreSQL in Compose and check HTTPS and certificate expiry
 	@echo "$(YELLOW)Ensuring Debian container is running...$(NC)"
 	@$(MAKE) -C platforms/docker compose-up
 	@echo ""
@@ -143,33 +147,33 @@ debian: ## Ensure the Debian compose container is running
 	@echo "  Use the HTTPS URL printed by compose-up, including the host port when it is not 443."
 
 .PHONY: debian-clean
-debian-clean: ## Recreate the Debian compose container
+debian-clean: ## Stop the Compose project and recreate Debian Moodle and PostgreSQL using existing volumes
 	@$(MAKE) -C platforms/docker compose-clean
 
 .PHONY: ubuntu
-ubuntu: ## Explain the current Ubuntu container path
+ubuntu: ## Print Ubuntu image build and integration test commands, then exit with status 1
 	@echo "$(YELLOW)compose.yml does not currently define a moodle-test-ubuntu service.$(NC)"
 	@echo "  docker build -f docker/Dockerfile.ubuntu -t laemp-ubuntu:24.04 ."
 	@echo "  CONTAINER_RUNTIME=docker $(BATS) $(INTEGRATION_BATS)"
 	@exit 1
 
 .PHONY: ubuntu-clean
-ubuntu-clean: ## Explain the current Ubuntu clean-slate container path
+ubuntu-clean: ## Print a no-cache Ubuntu build command and integration test command, then exit with status 1
 	@echo "$(YELLOW)compose.yml does not currently define a moodle-test-ubuntu service.$(NC)"
 	@echo "  docker build --no-cache -f docker/Dockerfile.ubuntu -t laemp-ubuntu:24.04 ."
 	@echo "  CONTAINER_RUNTIME=docker $(BATS) $(INTEGRATION_BATS)"
 	@exit 1
 
 .PHONY: docker-baseline
-docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, Moodle 5.2.4/stable502)
+docker-baseline: ## Run the Docker baseline (Debian stock, PHP 8.4, nginx, MariaDB, pinned Moodle 5.2.4)
 	@$(MAKE) -C platforms/docker baseline
 
 .PHONY: docker-matrix
-docker-matrix: ## Run the supported Docker matrix
+docker-matrix: ## Install and verify each supported Docker configuration
 	@$(MAKE) -C platforms/docker matrix
 
 .PHONY: slicer
-slicer: ## Run the Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, weekly Moodle 5.2)
+slicer: ## Run the Slicer baseline and Playwright smoke (fresh VM, PHP 8.4, nginx, MariaDB, weekly Moodle 5.2)
 	@$(MAKE) -C platforms/slicervm baseline
 
 .PHONY: slicer-matrix
@@ -177,7 +181,7 @@ slicer-matrix: ## Run the supported Slicer matrix with Playwright smoke checks
 	@$(MAKE) -C platforms/slicervm matrix
 
 .PHONY: lima
-lima: ## Run the Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, weekly Moodle 5.2)
+lima: ## Run the Lima baseline and Playwright smoke (fresh VM, PHP 8.4, nginx, MariaDB, weekly Moodle 5.2)
 	@$(MAKE) -C platforms/lima baseline
 
 .PHONY: lima-matrix
@@ -185,11 +189,11 @@ lima-matrix: ## Run the supported Lima matrix with Playwright smoke checks
 	@$(MAKE) -C platforms/lima matrix
 
 .PHONY: cleanup
-cleanup: ## Remove compose test containers, networks, and volumes
+cleanup: ## Attempt Compose teardown, including volumes, and remove named LAEMP test volumes and network
 	@./scripts/cleanup.sh
 
 .PHONY: test-security
-test-security: ## Test installer credential privacy with synthetic fixtures
+test-security: ## Test installer credential privacy, storage, and database provisioning with synthetic fixtures
 	@uv run --locked python -m unittest discover -s tests/security -p 'test_installer_*.py' -v
 
 VERIFY_SKILL := skills/verify-laemp
