@@ -45,18 +45,17 @@ Successful installs write admin credentials to `/var/lib/laemp/moodle-admin-cred
 ## Local Validation
 
 Install the repo hooks with `lefthook install` or `make hooks`. The pre-commit
-hook runs ShellCheck against staged shell files, and the pre-push hook runs the
-same `make lint` gate that CI runs on demand.
+hook runs ShellCheck against staged shell files. The pre-push hook runs local CI,
+including `make lint`, `make test`, and the BATS tests for gate refusal.
+
+Run the same local CI checks on demand with:
+
+```bash
+lefthook run pre-push --force
+```
 
 Skip one hook run only when needed with `LEFTHOOK=0 git ...` or `git ... --no-verify`.
 The underlying hook scripts also honor `LAEMP_SKIP_HOOKS=1`.
-
-GitHub CI no longer runs automatically on pushes or pull requests. Run it on
-demand with:
-
-```bash
-gh workflow run ci.yml
-```
 
 ## Test Strategy
 
