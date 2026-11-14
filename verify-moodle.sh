@@ -36,26 +36,27 @@ Usage:
   verify-moodle.sh [options]
 
 Options:
-  --backend TYPE            nginx, apache, frankenphp, none, or auto
-  --database TYPE           mariadb, mysqli, mysql, pgsql, none, or auto
-  --php-runtime TYPE        fpm, embedded, none, or auto
-  --url URL                 Site URL to probe
-  --config-path PATH        Moodle config.php path
+  --backend TYPE            nginx, apache, frankenphp, none, or auto (default)
+  --database TYPE           mariadb (aliases: mysql, mysqli), pgsql (aliases: postgres,
+                            postgresql), none, or auto (default: read config.php)
+  --php-runtime TYPE        fpm, embedded, none, or auto (default: detect PHP-FPM)
+  --url URL                 Site URL (default: wwwroot from config.php, then localhost)
+  --config-path PATH        Moodle config.php path (default: discover it locally)
   --config-check-command CMD
                             Shell command used instead of testing config.php locally
   --web-check-command CMD   Shell command used instead of local web process detection
   --php-check-command CMD   Shell command used instead of local PHP runtime detection
   --db-ping-command CMD     Shell command used instead of built-in DB ping
   --db-query-command CMD    Shell command that prints the Moodle table count
-  --db-host HOST            Database host
-  --db-name NAME            Database name (default: moodle)
-  --db-user USER            Database user (default: moodle)
+  --db-host HOST            Database host (fallback: localhost)
+  --db-name NAME            Database name (fallback: moodle)
+  --db-user USER            Database user (fallback: moodle)
   --db-password PASSWORD    Database password
-  --db-password-file PATH   Read database password from PATH
-  --db-prefix PREFIX        Moodle table prefix (default: mdl_)
+  --db-password-file PATH   Read password from PATH, overriding --db-password and environment values
+  --db-prefix PREFIX        Moodle table prefix (fallback: mdl_)
   --table-min COUNT         Minimum expected Moodle table count (default: 400)
   --content-match TEXT      Require TEXT to appear in the HTTP response body
-  -k, --insecure            Use curl -k
+  -k, --insecure            Disable TLS certificate verification (automatically used for the HTTPS localhost fallback)
   --skip-config-check       Skip config.php verification
   --skip-web-check          Skip web process verification
   --skip-php-check          Skip PHP runtime verification
@@ -63,9 +64,20 @@ Options:
   --skip-asset-check        Skip Moodle PHP asset route verification
   -h, --help                Show this help text
 
-Environment:
-  DB_TYPE, DB_HOST, DB_NAME, DB_USER, DB_PASS, MOODLE_URL, MOODLE_CONFIG_PATH,
-  BACKEND, PHP_RUNTIME, DB_PING_COMMAND, DB_QUERY_COMMAND, CONTENT_MATCH
+Database settings fall back to config.php before the built-in values above.
+With --database none, supply both custom database commands or use --skip-db-check.
+Only fpm requires a local PHP process check. embedded and none skip it unless
+you supply --php-check-command.
+
+Environment defaults:
+  MOODLE_URL, MOODLE_CONFIG_PATH, BACKEND, PHP_RUNTIME
+  DB_TYPE, DB_HOST, DB_NAME, DB_USER, DB_PREFIX, DB_PASS, MOODLE_DB_PASSWORD
+  CONFIG_CHECK_COMMAND, WEB_CHECK_COMMAND, PHP_CHECK_COMMAND
+  DB_PING_COMMAND, DB_QUERY_COMMAND, TABLE_MIN, CONTENT_MATCH
+  ASSET_SMOKE_PATH (default: /login/index.php)
+
+Example:
+  ./verify-moodle.sh --url https://moodle.example.org --config-path /path/to/config.php
 EOF
 }
 
