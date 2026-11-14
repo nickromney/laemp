@@ -41,6 +41,7 @@ declare -a EXTRA_FLAGS=()
 function usage() {
   cat <<'EOF'
 Run the supported LAEMP Slicer matrix with Playwright smoke checks.
+With no filters, run all supported PHP, web server, and Moodle combinations.
 
 Usage:
   platforms/slicervm/run-matrix.sh [options]
@@ -48,14 +49,25 @@ Usage:
 Options:
   --php VERSION             Filter to one PHP version (8.3 or 8.4)
   --web SERVER              Filter to one web server (apache or nginx)
-  --moodle VERSION          Filter to one Moodle version (405, 500, 502)
-  --database TYPE           Database type to install (default: mariadb)
+  --moodle VERSION          Filter by weekly Moodle build code (405, 500, or 502)
+  --database TYPE           Install mariadb (default) or pgsql in every selected case
   --cert MODE               Certificate mode: self-signed or mkcert (default: self-signed)
   --extra-flag FLAG         Extra laemp.sh flag to pass through (repeatable)
-  --keep-failed-vm          Do not delete the VM after a failed run
-  --results-dir DIR         Write logs and TSV summary to DIR
+  --keep-failed-vm          Keep failed VMs (default: delete them)
+  --results-dir DIR         Write logs and a TSV summary to DIR (default: a new directory under /tmp)
   --project NAME            Playwright project to run (default: chromium)
   -h, --help                Show this help text
+
+
+Supported combinations:
+  PHP 8.3 with Apache or nginx and Moodle 405, 500, or 502
+  PHP 8.4 with Apache or nginx and Moodle 500 or 502
+
+The run-test.sh wrapper preselects PHP 8.4, nginx, and Moodle 502.
+
+The runner restarts the Slicer daemon after case cleanup by default when
+slicer-mac is available. Set SLICER_RESET_DAEMON_BETWEEN_COMBOS=false to
+leave the daemon running.
 
 Examples:
   platforms/slicervm/run-matrix.sh

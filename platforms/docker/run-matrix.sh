@@ -61,30 +61,37 @@ function format_url() {
 
 function usage() {
   cat <<'EOF'
-Run the Docker matrix for laemp.sh.
+Run the Docker matrix for laemp.sh. With no filters, run all cases listed below.
 
 Usage:
   platforms/docker/run-matrix.sh [options]
 
 Options:
-  --distro NAME             Filter to one distro (debian or ubuntu)
+  --distro NAME             Filter by distro (current cases: debian)
   --label NAME              Filter to one exact case label
   --image-set NAME          Filter to one image set (stock or prereqs)
-  --php VERSION             Filter to one PHP version
+  --php VERSION             Filter to one PHP version (8.3 or 8.4)
   --web SERVER              Filter to one web server (apache or nginx)
   --database TYPE           Filter to one database (mariadb or pgsql)
-  --moodle VERSION          Filter to one Moodle version
-  --results-dir DIR         Write logs and TSV output to DIR
-  --keep-failed-container   Do not delete failed containers
-  --rebuild-images          Force image rebuilds before running
-  --playwright              Run Playwright after direct sanity checks
+  --moodle VERSION          Filter by Moodle code (4042, 5024, or 5030)
+  --results-dir DIR         Write logs and a TSV summary to DIR (default: a new directory under /tmp)
+  --keep-failed-container   Keep failed containers (default: remove them)
+  --rebuild-images          Rebuild images (default: reuse existing images and build missing ones)
+  --playwright              Run Playwright after service checks (default: off)
   -h, --help                Show this help text
 
 Examples:
   platforms/docker/run-matrix.sh
-  platforms/docker/run-matrix.sh --web nginx --database mariadb
+  platforms/docker/run-matrix.sh --label debian-stock-nginx-mariadb-m5024 --playwright
   platforms/docker/run-matrix.sh --image-set prereqs --web nginx
+
+The run-baseline.sh wrapper preselects debian-stock-nginx-mariadb-m5024.
+Filters are combined. The available case labels are:
 EOF
+  local entry
+  for entry in "${SUPPORTED_CASES[@]}"; do
+    printf '  %s\n' "${entry%%|*}"
+  done
 }
 
 function require_playwright() {
