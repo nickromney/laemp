@@ -14,20 +14,38 @@ utc_stamp() {
   python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc)+timedelta(seconds=int('${1}'))).strftime('%Y%m%d%H%M%SZ'))"
 }
 
-mint_cert() {
+mint_cert() (
   local dest_dir="$1"
   local not_before="$2"
   local not_after="$3"
 
   mkdir -p "${dest_dir}"
-  "${OPENSSL_FIXTURE_BIN}" req -x509 -newkey rsa:2048 -nodes \
-    -keyout "${dest_dir}/key.pem" \
-    -out "${dest_dir}/cert.pem" \
-    -subj "/CN=tls-preflight.test" \
-    -not_before "${not_before}" \
-    -not_after "${not_after}" \
-    >/dev/null 2>&1
-}
+  cd "${dest_dir}"
+  # Use ca for explicit validity dates, including on Ubuntu 24.04's OpenSSL.
+  cat > ca.cnf <<'EOF'
+[ca]
+default_ca = fixture
+[fixture]
+database = index.txt
+new_certs_dir = .
+serial = serial
+default_md = sha256
+policy = subject_policy
+[subject_policy]
+commonName = supplied
+EOF
+  : > index.txt
+  printf '01\n' > serial
+
+  if ! "${OPENSSL_FIXTURE_BIN}" req -new -newkey rsa:2048 -nodes \
+    -keyout key.pem -out request.pem -subj "/CN=tls-preflight.test" 2> openssl.log ||
+    ! "${OPENSSL_FIXTURE_BIN}" ca -selfsign -batch -notext -config ca.cnf \
+      -keyfile key.pem -in request.pem -out cert.pem \
+      -startdate "${not_before}" -enddate "${not_after}" >> openssl.log 2>&1; then
+    cat openssl.log >&2
+    exit 1
+  fi
+)
 
 serve_tls() {
   local cert_dir="$1"
