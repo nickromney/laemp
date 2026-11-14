@@ -169,7 +169,7 @@ docker-matrix: ## Run the supported Docker matrix
 	@$(MAKE) -C platforms/docker matrix
 
 .PHONY: slicer
-slicer: ## Run the proven Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.4/stable502)
+slicer: ## Run the Slicer baseline (fresh VM, PHP 8.4, nginx, MariaDB, weekly Moodle 5.2)
 	@$(MAKE) -C platforms/slicervm baseline
 
 .PHONY: slicer-matrix
@@ -177,7 +177,7 @@ slicer-matrix: ## Run the supported Slicer matrix with Playwright smoke checks
 	@$(MAKE) -C platforms/slicervm matrix
 
 .PHONY: lima
-lima: ## Run the proven Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, Moodle 5.2.4/stable502)
+lima: ## Run the Lima baseline (fresh VM, PHP 8.4, nginx, MariaDB, weekly Moodle 5.2)
 	@$(MAKE) -C platforms/lima baseline
 
 .PHONY: lima-matrix
