@@ -96,7 +96,7 @@ setup() {
 }
 
 @test "moodle flag (-m) with version 405 (4.5) in dry-run verbose mode" {
-  run ./laemp.sh -m 405 -n -v
+  run ./laemp.sh -p 8.3 -m 405 -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
   [[ "$output" =~ "Ensure Moodle version 405" ]]
@@ -137,7 +137,7 @@ setup() {
 }
 
 @test "moodle flag (--moodle) with specific version in dry-run verbose mode" {
-  run ./laemp.sh --moodle 405 -n -v
+  run ./laemp.sh --php 8.3 --moodle 405 -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
   [[ "$output" =~ "Ensure Moodle version 405" ]]
@@ -223,14 +223,14 @@ setup() {
   run ./laemp.sh -d mysql -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
-  [[ "$output" =~ "Database type set to mysql" ]]
+  [[ "$output" =~ "Database type set to mariadb" ]]
 }
 
 @test "database flag (-d mysqli) in dry-run verbose mode" {
   run ./laemp.sh -d mysqli -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
-  [[ "$output" =~ "Database type set to mysql" ]]
+  [[ "$output" =~ "Database type set to mariadb" ]]
 }
 
 @test "database flag (-d pgsql) in dry-run verbose mode" {
@@ -244,7 +244,7 @@ setup() {
   run ./laemp.sh --database mysql -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
-  [[ "$output" =~ "Database type set to mysql" ]]
+  [[ "$output" =~ "Database type set to mariadb" ]]
 }
 
 @test "database flag (--database pgsql) in dry-run verbose mode" {
@@ -414,12 +414,12 @@ setup() {
 # ==============================================================================
 
 @test "full LAMP stack with Moodle in dry-run verbose mode" {
-  run ./laemp.sh -w apache -p 8.4 -d mysql -m 405 -n -v
+  run ./laemp.sh -w apache -p 8.3 -d mysql -m 405 -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
   [[ "$output" =~ "Webserver type set to Apache" ]]
-  [[ "$output" =~ "Ensure PHP version 8.4" ]]
-  [[ "$output" =~ "Database type set to mysql" ]]
+  [[ "$output" =~ "Ensure PHP version 8.3" ]]
+  [[ "$output" =~ "Database type set to mariadb" ]]
   [[ "$output" =~ "Ensure Moodle version 405" ]]
 }
 
@@ -434,11 +434,11 @@ setup() {
 }
 
 @test "nginx with PHP-FPM, Moodle, and monitoring in dry-run verbose mode" {
-  run ./laemp.sh -w nginx -p 8.4 -m 405 -r -n -v
+  run ./laemp.sh -w nginx -p 8.3 -m 405 -r -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
   [[ "$output" =~ "Webserver type set to Nginx" ]]
-  [[ "$output" =~ "Ensure PHP version 8.4" ]]
+  [[ "$output" =~ "Ensure PHP version 8.3" ]]
   [[ "$output" =~ "Ensure Moodle version 405" ]]
   [[ "$output" =~ "Ensure Prometheus monitoring" ]]
 }
@@ -454,12 +454,12 @@ setup() {
 }
 
 @test "complete setup with all major flags in dry-run verbose mode" {
-  run ./laemp.sh -w nginx -p 8.4 -d mysql -m 405 -M local -r -S -n -v
+  run ./laemp.sh -w nginx -p 8.3 -d mysql -m 405 -M local -r -S -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
   [[ "$output" =~ "Webserver type set to Nginx" ]]
-  [[ "$output" =~ "Ensure PHP version 8.4" ]]
-  [[ "$output" =~ "Database type set to mysql" ]]
+  [[ "$output" =~ "Ensure PHP version 8.3" ]]
+  [[ "$output" =~ "Database type set to mariadb" ]]
   [[ "$output" =~ "Ensure Moodle version 405" ]]
   [[ "$output" =~ "Ensure Memcached" ]]
   [[ "$output" =~ "Ensure Prometheus monitoring" ]]
@@ -474,12 +474,12 @@ setup() {
 }
 
 @test "moodle with postgres and acme cert in dry-run verbose mode" {
-  run ./laemp.sh -m 405 -d pgsql -a -w nginx -p 8.4 -n -v
+  run ./laemp.sh -m 405 -d pgsql -a -w nginx -p 8.3 -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
   [[ "$output" =~ "Ensure Moodle version 405" ]]
   [[ "$output" =~ "Database type set to pgsql" ]]
-  [[ "$output" =~ "Ensure PHP version 8.4" ]]
+  [[ "$output" =~ "Ensure PHP version 8.3" ]]
 }
 
 # ==============================================================================
@@ -529,12 +529,12 @@ setup() {
 # ==============================================================================
 
 @test "all long options work together in dry-run verbose mode" {
-  run ./laemp.sh --web nginx --php 8.4 --database mysql --moodle 405 --memcached --prometheus --nop --verbose
+  run ./laemp.sh --web nginx --php 8.3 --database mysql --moodle 405 --memcached --prometheus --nop --verbose
   echo "Exit status: $status"
   [ $status -eq 0 ]
   [[ "$output" =~ "Webserver type set to Nginx" ]]
-  [[ "$output" =~ "Ensure PHP version 8.4" ]]
-  [[ "$output" =~ "Database type set to mysql" ]]
+  [[ "$output" =~ "Ensure PHP version 8.3" ]]
+  [[ "$output" =~ "Database type set to mariadb" ]]
   [[ "$output" =~ "Ensure Moodle version 405" ]]
   [[ "$output" =~ "Ensure Memcached" ]]
   [[ "$output" =~ "Ensure Prometheus monitoring" ]]
@@ -568,8 +568,7 @@ setup() {
   run ./laemp.sh -m -n -v
   echo "Exit status: $status"
   [ $status -eq 0 ]
-  # Should use default Moodle version (405)
-  [[ "$output" =~ "Ensure Moodle version 405" ]]
+  [[ "$output" =~ "Ensure Moodle version 5024" ]]
 }
 
 @test "option with missing value for web server uses default" {
@@ -588,11 +587,11 @@ setup() {
 }
 
 @test "flags in different order produce same result" {
-  run ./laemp.sh -n -v -w nginx -p 8.4 -m 405
+  run ./laemp.sh -n -v -w nginx -p 8.3 -m 405
   echo "Exit status: $status"
   [ $status -eq 0 ]
   [[ "$output" =~ "Webserver type set to Nginx" ]]
-  [[ "$output" =~ "Ensure PHP version 8.4" ]]
+  [[ "$output" =~ "Ensure PHP version 8.3" ]]
   [[ "$output" =~ "Ensure Moodle version 405" ]]
 }
 

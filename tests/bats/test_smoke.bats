@@ -337,13 +337,14 @@ EOF
   [ "$status" -ne 0 ]
 }
 
-@test "script handles multiple short options" {
+@test "help takes precedence over other short options" {
   if [ "$OS_CHECK_REQUIRED" = true ]; then
     skip "Requires Ubuntu/Debian OS"
   fi
-  run "$SCRIPT" -nvh
-  # Should work (help overrides, so exit 0)
+  run "$SCRIPT" -n -v -h
   [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage:"* ]]
+  [[ "$output" != *"Dry run complete"* ]]
 }
 
 # ============================================================================
@@ -397,9 +398,9 @@ EOF
   if [ "$OS_CHECK_REQUIRED" = true ]; then
     skip "Requires Ubuntu/Debian OS"
   fi
-  run "$SCRIPT" -m 405 -n -v
+  run "$SCRIPT" -p 8.3 -m 405 -n -v
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "405" || "$output" =~ "4.5" || "$output" =~ "Moodle" ]]
+  [[ "$output" == *"Ensure Moodle version 405"* ]]
 }
 
 @test "moodle option works without version (uses default)" {
