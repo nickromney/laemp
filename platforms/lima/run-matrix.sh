@@ -114,22 +114,16 @@ function read_admin_credentials_from_vm() {
   local instance_name="$1"
   local credentials_file_q
   printf -v credentials_file_q '%q' "${ADMIN_CREDENTIALS_FILE}"
-  lima_shell_root_bash "${instance_name}" "test -f ${credentials_file_q}"
-  lima_shell_root_bash "${instance_name}" "set -a; . ${credentials_file_q}; set +a; printf '%s\t%s\n' \"\${MOODLE_ADMIN_USERNAME:-}\" \"\${MOODLE_ADMIN_PASSWORD:-}\""
-}
-
-function extract_admin_password() {
-  local install_log="$1"
-  awk -F': ' '/Admin password:/ {print $NF; exit}' "${install_log}"
+  lima_shell_root_bash "${instance_name}" "set -e; . ${credentials_file_q}; printf '%s\\t%s\\n' \"\${MOODLE_ADMIN_USERNAME:?}\" \"\${MOODLE_ADMIN_PASSWORD:?}\""
 }
 
 function verify_external_access() {
   local combo_dir="$1"
 
-  curl -ksSfI "https://${SITE_HOST}" | head -n 1 >"${combo_dir}/http_head_external.txt"
-  curl -sSI "http://${SITE_HOST}" >"${combo_dir}/http_redirect_external.txt"
-  grep -q "^HTTP/.* 301" "${combo_dir}/http_redirect_external.txt"
-  grep -qi "^location: https://${SITE_HOST}/" "${combo_dir}/http_redirect_external.txt"
+  curl -ksSfI "https://${SITE_HOST}" | head -n 1 >"${combo_dir}/http_head_external.txt" || return 1
+  curl -sSI "http://${SITE_HOST}" >"${combo_dir}/http_redirect_external.txt" || return 1
+  grep -q "^HTTP/.* 301" "${combo_dir}/http_redirect_external.txt" || return 1
+  grep -qi "^location: https://${SITE_HOST}/" "${combo_dir}/http_redirect_external.txt" || return 1
 }
 
 function verify_stack_in_vm() {
@@ -143,19 +137,19 @@ function verify_stack_in_vm() {
     web_service="apache2"
   fi
 
-  lima_shell_root_bash "${instance_name}" "test -f /var/www/html/${SITE_HOST}/config.php"
-  lima_shell_bash "${instance_name}" "curl -ksSfI https://127.0.0.1 | head -n 1" >"${combo_dir}/http_head_internal.txt"
-  verify_external_access "${combo_dir}"
+  lima_shell_root_bash "${instance_name}" "test -f /var/www/html/${SITE_HOST}/config.php" || return 1
+  lima_shell_bash "${instance_name}" "curl -ksSfI https://127.0.0.1" >"${combo_dir}/http_head_internal.txt" || return 1
+  verify_external_access "${combo_dir}" || return 1
 
-  lima_shell_root_bash "${instance_name}" "systemctl is-active ${web_service}" >"${combo_dir}/web_service.txt"
-  lima_shell_root_bash "${instance_name}" "systemctl is-active cron" >"${combo_dir}/cron_service.txt"
+  lima_shell_root_bash "${instance_name}" "systemctl is-active ${web_service}" >"${combo_dir}/web_service.txt" || return 1
+  lima_shell_root_bash "${instance_name}" "systemctl is-active cron" >"${combo_dir}/cron_service.txt" || return 1
 
   if [[ "${DB_TYPE}" == "pgsql" ]]; then
-    lima_shell_root_bash "${instance_name}" "systemctl is-active postgresql" >"${combo_dir}/db_service.txt"
-    table_count=$(lima_shell_root_bash "${instance_name}" "sudo -u postgres psql -d moodle -Atc \"select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'mdl_%';\"")
+    lima_shell_root_bash "${instance_name}" "systemctl is-active postgresql" >"${combo_dir}/db_service.txt" || return 1
+    table_count=$(lima_shell_root_bash "${instance_name}" "sudo -u postgres psql -d moodle -Atc \"select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'mdl_%';\"") || return 1
   else
-    lima_shell_root_bash "${instance_name}" "systemctl is-active mariadb" >"${combo_dir}/db_service.txt"
-    table_count=$(lima_shell_root_bash "${instance_name}" "mysql -Nse \"select count(*) from information_schema.tables where table_schema = 'moodle' and table_name like 'mdl_%';\"")
+    lima_shell_root_bash "${instance_name}" "systemctl is-active mariadb" >"${combo_dir}/db_service.txt" || return 1
+    table_count=$(lima_shell_root_bash "${instance_name}" "mysql -Nse \"select count(*) from information_schema.tables where table_schema = 'moodle' and table_name like 'mdl_%';\"") || return 1
   fi
 
   if [[ -z "${table_count}" || "${table_count}" -lt 400 ]]; then
@@ -163,7 +157,7 @@ function verify_stack_in_vm() {
     return 1
   fi
 
-  lima_shell_root_bash "${instance_name}" "/tmp/verify-moodle.sh -k" >"${combo_dir}/verify-moodle.txt"
+  lima_shell_root_bash "${instance_name}" "/tmp/verify-moodle.sh -k --config-path /var/www/html/${SITE_HOST}/config.php" >"${combo_dir}/verify-moodle.txt" || return 1
   printf '%s\n' "${table_count}" >"${combo_dir}/table_count.txt"
 }
 
@@ -328,15 +322,10 @@ for combo in "${SUPPORTED_COMBOS[@]}"; do
   done
 
   if lima_shell_root_bash "${instance_name}" "${install_cmd}" 2>&1 | tee "${install_log}"; then
-    credentials_line="$(read_admin_credentials_from_vm "${instance_name}" 2>/dev/null || true)"
-    if [[ -n "${credentials_line}" ]]; then
-      IFS=$'\t' read -r admin_username admin_password <<<"${credentials_line}"
-    fi
-    if [[ -z "${admin_password}" ]]; then
-      admin_password="$(extract_admin_password "${install_log}" || true)"
-    fi
-    if [[ -z "${admin_password}" ]]; then
-      echo "Error: could not extract admin password from ${install_log}." >&2
+    if ! credentials_line="$(read_admin_credentials_from_vm "${instance_name}" 2>/dev/null)" ||
+      ! IFS=$'\t' read -r admin_username admin_password <<<"${credentials_line}" ||
+      [[ -z "${admin_username}" || -z "${admin_password}" ]]; then
+      echo "Error: could not read the private Moodle admin credential handoff from ${instance_name}." >&2
       failures=$((failures + 1))
       printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "${label}" "FAIL" "${instance_name}" "https://${SITE_HOST}" "${php_version}" "${web_server}" "${moodle_version}" "${DB_TYPE}" "${CERT_MODE}" "${ADMIN_EMAIL}" "" "${combo_dir}" >>"${RESULTS_TSV}"

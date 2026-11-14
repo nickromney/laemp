@@ -806,7 +806,18 @@ function repository_ensure() {
             log error "add-apt-repository not found. Install software-properties-common first."
             exit 1
           fi
-          run_command --makes-changes add-apt-repository -y "$repository"
+          local attempt
+          for attempt in 1 2 3; do
+            if run_command --makes-changes add-apt-repository -y "$repository"; then
+              break
+            fi
+            if ((attempt == 3)); then
+              log error "Could not add PPA ${repository} after ${attempt} attempts."
+              return 1
+            fi
+            log info "Retrying PPA registration for ${repository}."
+            sleep 5
+          done
         elif [[ "$repository" =~ ^deb ]]; then
           # Debian deb line format - write directly to sources.list.d
           local repo_name

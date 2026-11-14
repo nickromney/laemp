@@ -28,7 +28,8 @@ portForwards:
   - guestPort: 443
     hostIP: "127.0.0.1"
     hostPort: 443
-  - guestIP: "127.0.0.1"
+  - guestIP: "0.0.0.0"
+    guestIPMustBeZero: false
     proto: any
     guestPortRange: [1, 65535]
     ignore: true

@@ -102,3 +102,22 @@ teardown() {
   grep -Fxq '<VirtualHost *:443>' "$TEST_TMPDIR/vhost"
   grep -Fq 'Redirect permanent / https://fixture.test:18543/' "$TEST_TMPDIR/vhost"
 }
+
+@test "PPA registration retries a failed Launchpad request" {
+  package_manager=apt
+  attempts=0
+  add-apt-repository() { :; }
+  sleep() { :; }
+  run_command() {
+    case "$2" in
+      add-apt-repository)
+        attempts=$((attempts + 1))
+        [[ "$attempts" -ge 2 ]]
+        ;;
+      apt-get) [[ "$attempts" -eq 2 ]] ;;
+      *) return 1 ;;
+    esac
+  }
+  repository_ensure ppa:ondrej/php
+  [ "$attempts" -eq 2 ]
+}
