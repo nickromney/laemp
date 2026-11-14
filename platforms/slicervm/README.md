@@ -15,6 +15,17 @@ make -C platforms/slicervm baseline
 make -C platforms/slicervm matrix
 ```
 
+
+To run only the PHP 8.4 and nginx baseline case:
+
+```bash
+platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 502
+```
+
+The matrix filters match weekly build codes. PHP 8.3 supports `405`, `500`,
+and `502` in this matrix. PHP 8.4 supports `500` and `502`. The
+`502` filter selects the weekly Moodle 5.2 build.
+
 Notes:
 
 - The harness uses the system daemon under `~/slicer-mac`.

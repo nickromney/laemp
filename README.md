@@ -121,7 +121,7 @@ Use Slicer when you need VM-faithful validation against a real Ubuntu-like guest
 make slicer
 
 # One supported combo with Playwright smoke
-platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 5024
+platforms/slicervm/run-matrix.sh --php 8.4 --web nginx --moodle 502
 
 # Full supported Slicer matrix
 make slicer-matrix
